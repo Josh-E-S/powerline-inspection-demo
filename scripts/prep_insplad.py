@@ -127,7 +127,9 @@ def prep_detection():
     )
 
     yaml_lines = [
-        "path: .",
+        # absolute: Ultralytics resolves a relative `path` against its
+        # global datasets dir, not this file's location
+        f"path: {OUT_DET.resolve()}",
         "train: images/train",
         "val: images/val",
         "test: images/test",
