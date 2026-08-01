@@ -1,0 +1,11 @@
+# Full dev/training environment.
+# Pin exact versions (pip freeze) once the first end-to-end run works;
+# the README reproduction section will reference the pinned versions.
+ultralytics
+torch
+torchvision
+onnx
+onnxruntime
+gradio
+numpy
+pillow

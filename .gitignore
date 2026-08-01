@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data: populated manually + by scripts/prep_insplad.py (see data/README.md)
+data/*
+!data/README.md
+
+# Training artifacts
+runs/
+*.pt
+
+# Note: app/models/*.onnx and app/pr_table.json ARE tracked once generated;
+# the Hugging Face Space needs them.
+
+# OS
+.DS_Store

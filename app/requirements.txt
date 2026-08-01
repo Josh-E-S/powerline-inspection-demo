@@ -1,0 +1,6 @@
+# Lean dependencies for the Hugging Face Space (CPU free tier).
+# No Ultralytics/torch at inference time; ONNX Runtime serves both models.
+gradio
+onnxruntime
+numpy
+pillow
