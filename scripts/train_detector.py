@@ -54,7 +54,9 @@ def build_oversampled_yaml(max_repeat: int = 4) -> Path:
         if classes:
             rarest = min(freq[c] for c in classes)
             repeat = min(max_repeat, max(1, round((median / rarest) ** 0.5)))
-        lines.extend([str(matches[0].resolve())] * repeat)
+        # keep the images/train symlink path (do NOT resolve): Ultralytics
+        # finds labels by substituting /images/ -> /labels/ in each path
+        lines.extend([str(matches[0])] * repeat)
 
     (DATA / "train_oversampled.txt").write_text("\n".join(lines) + "\n")
 
