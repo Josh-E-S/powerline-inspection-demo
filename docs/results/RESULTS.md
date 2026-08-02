@@ -72,8 +72,63 @@ Likely cause of the flat mAP50-95: early stopping ended the run at epoch
 67, so the schedule never reached `close_mosaic` at epoch 111. Mosaic
 augmentation stayed on for the entire run, and mosaic is known to trade
 box precision for feature robustness. The 640 baseline did get its ten
-mosaic-free epochs. Untested follow-up: rerun at 1280 with early stopping
-disabled (or a short 60-epoch schedule so close_mosaic fires at 50).
+mosaic-free epochs. This became the next experiment, below.
+
+## Third run: 60-epoch schedule so close_mosaic actually fires
+
+Same 1280 + oversampling recipe, but `--epochs 60 --patience 0`, so
+`close_mosaic` triggers at epoch 50 and early stopping cannot skip it.
+Confound to note: shortening the schedule also flipped Ultralytics'
+`optimizer=auto` from MuSGD to AdamW, so two variables changed, not one.
+A `--optimizer` flag now exists to pin this in future runs.
+
+The mechanism is visible in the logs: at epoch 51 train box loss drops
+0.474 to 0.460 and cls loss 0.286 to 0.246, exactly where mosaic closes.
+
+Final results, all detector variants, same held-out test set:
+
+| Model | Size (MB) | mAP50 | mAP50-95 | p50 (ms) | p95 (ms) |
+|---|---|---|---|---|---|
+| 640 FP32 | 38.0 | 0.893 | 0.734 | 34.7 | 36.3 |
+| 640 INT8 (deployed) | 10.1 | 0.889 | 0.710 | 30.1 | 32.1 |
+| 1280 120ep FP32 | 38.5 | 0.909 | 0.723 | 149.2 | 154.9 |
+| 1280 120ep INT8 | 10.6 | 0.883 | 0.683 | 122.4 | 127.3 |
+| **1280 cm60 FP32** | 38.5 | **0.912** | **0.738** | 150.3 | 155.6 |
+| **1280 cm60 INT8** | 10.6 | 0.906 | 0.726 | 127.2 | 132.0 |
+
+The hypothesis held. Closing mosaic lifted mAP50-95 from 0.723 to 0.738
+(+0.015), enough to pass the 640 baseline's 0.734, so a single model now
+leads on both metrics:
+
+- **mAP50 0.912** against the ~0.90 reported by YOLOv8-ECCa, a
+  purpose-modified architecture. This is stock YOLO11-s.
+- **mAP50-95 0.738** against DetectoRS's 0.721 (verify the paper's metric
+  definition before publishing this comparison).
+
+The quantized model is the more interesting claim. At 10.6 MB, cm60 INT8
+scores 0.906 mAP50 and 0.726 mAP50-95, so **the quantized model alone
+still exceeds the published DetectoRS number** while being small enough
+to serve on a free CPU tier.
+
+Quantization behaved much better here too: probability correlation 0.964
+(against 0.837 for the 120-epoch run) and per-image detection counts
+tracking FP32 closely (80 vs 80, 39 vs 39, 37 vs 37). The AdamW-trained
+weights quantize cleanly where the MuSGD-trained weights did not, which
+is worth remembering: quantization robustness is a property of the
+trained weights, not only of the quantization settings.
+
+Weak-class progress, AP50, 640-INT8 to cm60-INT8: lightning rod shackle
+0.792 to 0.921, glass insulator tower shackle 0.609 to 0.645, big shackle
+0.568 to 0.596, small shackle 0.552 to 0.581. The three glass-insulator
+shackle variants remain the floor of the model and the honest limit of
+what resolution and oversampling fixed; the remaining confusion is
+between the variants themselves, which points at label ambiguity rather
+than resolution.
+
+Deployment decision: the Space still serves the 640 INT8 model. cm60 INT8
+is meaningfully more accurate (+1.7 mAP50) but costs 127 ms per image
+against 30 ms, and free-tier CPU cold starts favour the smaller input.
+The 1280 model is reported as the best model trained.
 
 Deployment decision unchanged: the Space serves the 640 INT8 model. At
 1280 a single CPU inference costs ~122 ms against ~30 ms at 640, a 4x
