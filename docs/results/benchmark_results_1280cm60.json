@@ -1,0 +1,57 @@
+{
+  "cpu": "Apple M5",
+  "imgsz": 1280,
+  "runs": 200,
+  "fp32": {
+    "size_mb": 38.5,
+    "mAP50": 0.9123,
+    "mAP50_95": 0.7376,
+    "per_class_ap50": {
+      "yoke": 0.9665,
+      "yoke suspension": 0.9912,
+      "spacer": 0.9393,
+      "stockbridge damper": 0.9778,
+      "lightning rod shackle": 0.9194,
+      "lightning rod suspension": 0.995,
+      "polymer insulator": 0.9912,
+      "glass insulator": 0.9679,
+      "tower id plate": 0.995,
+      "vari-grip": 0.9937,
+      "polymer insulator lower shackle": 0.9096,
+      "polymer insulator upper shackle": 0.988,
+      "polymer insulator tower shackle": 0.995,
+      "glass insulator big shackle": 0.6406,
+      "glass insulator small shackle": 0.5947,
+      "glass insulator tower shackle": 0.6531,
+      "spiral damper": 0.9912
+    },
+    "p50_ms": 150.3,
+    "p95_ms": 158.5
+  },
+  "int8": {
+    "size_mb": 10.6,
+    "mAP50": 0.9062,
+    "mAP50_95": 0.7263,
+    "per_class_ap50": {
+      "yoke": 0.9653,
+      "yoke suspension": 0.9881,
+      "spacer": 0.9447,
+      "stockbridge damper": 0.9696,
+      "lightning rod shackle": 0.9208,
+      "lightning rod suspension": 0.995,
+      "polymer insulator": 0.991,
+      "glass insulator": 0.9652,
+      "tower id plate": 0.995,
+      "vari-grip": 0.9935,
+      "polymer insulator lower shackle": 0.8868,
+      "polymer insulator upper shackle": 0.9817,
+      "polymer insulator tower shackle": 0.995,
+      "glass insulator big shackle": 0.5956,
+      "glass insulator small shackle": 0.5805,
+      "glass insulator tower shackle": 0.6451,
+      "spiral damper": 0.9932
+    },
+    "p50_ms": 127.2,
+    "p95_ms": 130.3
+  }
+}
