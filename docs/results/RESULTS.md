@@ -100,10 +100,18 @@ The hypothesis held. Closing mosaic lifted mAP50-95 from 0.723 to 0.738
 (+0.015), enough to pass the 640 baseline's 0.734, so a single model now
 leads on both metrics:
 
-- **mAP50 0.912** against the ~0.90 reported by YOLOv8-ECCa, a
-  purpose-modified architecture. This is stock YOLO11-s.
-- **mAP50-95 0.738** against DetectoRS's 0.721 (verify the paper's metric
-  definition before publishing this comparison).
+- **mAP50-95 0.738** against DetectoRS's 0.721.
+- **mAP50 0.912** against DetectoRS's AP50 of 0.885.
+
+Metric definitions are now verified, not assumed: the InsPLAD paper
+defines its metric as "Box AP from MS COCO, also known as AP (with IoU as
+0.50:0.95)" and reports DetectoRS at AP 0.721 / AP50 0.885 / AP75 0.749.
+Same definition, same split, so the comparison is apples to apples.
+
+Correction to an earlier note in this file: YOLOv8-ECCa reports 82.75%
+mAP50 on InsPLAD-det, not ~90% as first recorded here. That figure is
+below the InsPLAD paper's own DetectoRS AP50 (0.885), which implies a
+different split or protocol, so it is not used as a comparison point.
 
 The quantized model is the more interesting claim. At 10.6 MB, cm60 INT8
 scores 0.906 mAP50 and 0.726 mAP50-95, so **the quantized model alone
