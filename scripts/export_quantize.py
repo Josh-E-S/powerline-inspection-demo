@@ -89,6 +89,10 @@ def quantize_detector(fp32_path: Path, imgsz: int, n_calib: int) -> Path:
         quant_format=QuantFormat.QDQ,
         per_channel=True,
         weight_type=QuantType.QInt8,
+        # Conv/MatMul only: the detect head's output mixes pixel coords
+        # (0-640) and class probs (0-1) in one tensor; quantizing that
+        # tensor forces one shared scale and rounds every prob to zero.
+        op_types_to_quantize=["Conv", "MatMul"],
     )
     pre.unlink()
     return int8_path
@@ -104,18 +108,24 @@ def sanity_check(fp32_path: Path, int8_path: Path, imgsz: int, n: int = 8):
     s8 = ort.InferenceSession(str(int8_path),
                               providers=["CPUExecutionProvider"])
     name = s32.get_inputs()[0].name
-    diffs, cors = [], []
+    box_cors, prob_cors, det_counts = [], [], []
     for f in files:
         x = letterbox(f, imgsz)
-        a = s32.run(None, {name: x})[0].ravel()
-        b = s8.run(None, {name: x})[0].ravel()
-        diffs.append(float(np.abs(a - b).mean()))
-        cors.append(float(np.corrcoef(a, b)[0, 1]))
-    print(f"Sanity ({len(files)} images): mean|diff|={np.mean(diffs):.4f}, "
-          f"output correlation={np.mean(cors):.4f}")
-    if np.mean(cors) < 0.95:
-        print("WARNING: low FP32/INT8 output correlation; inspect before "
-              "trusting metrics (try more calibration images).")
+        a = s32.run(None, {name: x})[0][0]  # (4+nc, anchors)
+        b = s8.run(None, {name: x})[0][0]
+        # coords and probs judged separately: coords (0-640) dominate any
+        # whole-tensor statistic and can mask fully-crushed probabilities
+        box_cors.append(float(np.corrcoef(a[:4].ravel(), b[:4].ravel())[0, 1]))
+        prob_cors.append(
+            float(np.corrcoef(a[4:].ravel(), b[4:].ravel())[0, 1]))
+        det_counts.append((int((a[4:].max(0) > 0.25).sum()),
+                           int((b[4:].max(0) > 0.25).sum())))
+    print(f"Sanity ({len(files)} images): box corr={np.mean(box_cors):.4f}, "
+          f"prob corr={np.mean(prob_cors):.4f}")
+    print(f"  detections above 0.25 per image (fp32 vs int8): {det_counts}")
+    if np.mean(prob_cors) < 0.95:
+        print("WARNING: INT8 class probabilities diverge from FP32; do not "
+              "trust metrics (check op exclusions / calibration).")
 
 
 def export_classifier(ckpt_path: str):
