@@ -37,6 +37,61 @@ larger speedup. Published context: the InsPLAD paper's best detector
 
 ![INT8 precision-recall curve](int8_pr_curve.png)
 
+## Second run: 1280 resolution + rare-class oversampling
+
+Hypothesis: the weak classes are small and rare, so quadrupling pixels and
+repeating rare-class images should lift them. Trained YOLO11-s at imgsz
+1280 with `--oversample`, same seed and hyperparameters otherwise.
+Early stopping fired at epoch 67 (best epoch 42), 2.6 h on an A100.
+
+All four detector variants on the same held-out test set:
+
+| Model | Size (MB) | mAP50 | mAP50-95 | p50 (ms) | p95 (ms) |
+|---|---|---|---|---|---|
+| 640 FP32 | 38.0 | 0.893 | **0.734** | 34.7 | 36.3 |
+| 640 INT8 (deployed) | 10.1 | 0.889 | 0.710 | 30.1 | 32.1 |
+| 1280 FP32 | 38.5 | **0.909** | 0.723 | 149.2 | 154.9 |
+| 1280 INT8 | 10.6 | 0.883 | 0.683 | 122.4 | 127.3 |
+
+Mixed result, stated plainly:
+
+- **mAP50 improved to 0.909**, clearing the ~0.90 reported by YOLOv8-ECCa
+  (a purpose-modified architecture) with a stock YOLO11-s.
+- **mAP50-95 did not improve** (0.723 vs the 640 run's 0.734). The best
+  mAP50-95 in this project remains the 640 baseline.
+- Every targeted weak class improved, but far less than the validation
+  numbers implied. Test AP50, 640-INT8 to 1280-FP32: glass insulator
+  small shackle 0.552 to 0.644, tower shackle 0.609 to 0.679, big shackle
+  0.568 to 0.623, lightning rod shackle 0.792 to 0.830.
+- The validation split showed these classes at 0.90-0.995, which looked
+  like a blowout. It was small-sample optimism: val holds 5-20 instances
+  of each shackle class against 195-263 in test. A useful reminder of why
+  the held-out test set is the only number worth quoting.
+
+Likely cause of the flat mAP50-95: early stopping ended the run at epoch
+67, so the schedule never reached `close_mosaic` at epoch 111. Mosaic
+augmentation stayed on for the entire run, and mosaic is known to trade
+box precision for feature robustness. The 640 baseline did get its ten
+mosaic-free epochs. Untested follow-up: rerun at 1280 with early stopping
+disabled (or a short 60-epoch schedule so close_mosaic fires at 50).
+
+Deployment decision unchanged: the Space serves the 640 INT8 model. At
+1280 a single CPU inference costs ~122 ms against ~30 ms at 640, a 4x
+latency increase for 1.6 points of mAP50 and a loss of mAP50-95. The 1280
+model is reported as the best-accuracy model trained, not the deployed
+one.
+
+Second quantization pitfall, caught by the hardened sanity check: INT8 at
+1280 degrades much more than at 640 (2.6 points of mAP50 lost vs 0.4).
+The check flagged it before the benchmark ran: box coordinate correlation
+stayed at 0.9996 while class probability correlation fell to 0.837, and
+per-image detection counts diverged on crowded scenes (76 detections in
+FP32 against 12 in INT8) while simple scenes matched. Cause is almost
+certainly MinMax calibration: 1280 inputs produce four times the anchor
+positions and wider activation tails, so outliers stretch the scale until
+small probabilities round to zero. Percentile calibration is the standard
+fix; not applied here because the deployed model is the 640 one.
+
 ## Per-class error analysis (INT8, AP50)
 
 Strong (0.89-0.995): everything with training support, including all
