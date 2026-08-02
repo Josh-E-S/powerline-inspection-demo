@@ -78,6 +78,10 @@ def main():
     ap.add_argument("--batch", type=float, default=-1,
                     help="-1 = auto-fit to GPU memory")
     ap.add_argument("--patience", type=int, default=25)
+    ap.add_argument("--optimizer", default="auto",
+                    help="auto picks by estimated iteration count, so "
+                         "changing --epochs can silently swap optimizers; "
+                         "pin it (e.g. AdamW, SGD) to keep runs comparable")
     ap.add_argument("--oversample", action="store_true",
                     help="repeat rare-class images in the train list")
     ap.add_argument("--name", default=None,
@@ -120,6 +124,7 @@ def main():
         imgsz=args.imgsz,
         batch=args.batch,
         patience=args.patience,
+        optimizer=args.optimizer,
         fraction=0.05 if args.smoke else 1.0,
         seed=SEED,
         cos_lr=True,
