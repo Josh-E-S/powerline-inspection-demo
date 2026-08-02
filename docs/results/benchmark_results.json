@@ -1,0 +1,75 @@
+{
+  "cpu": "Apple M5",
+  "imgsz": 640,
+  "runs": 200,
+  "fp32": {
+    "size_mb": 38.0,
+    "mAP50": 0.8926,
+    "mAP50_95": 0.7343,
+    "per_class_ap50": {
+      "yoke": 0.9426,
+      "yoke suspension": 0.9904,
+      "spacer": 0.8998,
+      "stockbridge damper": 0.9671,
+      "lightning rod shackle": 0.7989,
+      "lightning rod suspension": 0.995,
+      "polymer insulator": 0.9909,
+      "glass insulator": 0.9646,
+      "tower id plate": 0.995,
+      "vari-grip": 0.9943,
+      "polymer insulator lower shackle": 0.9115,
+      "polymer insulator upper shackle": 0.9805,
+      "polymer insulator tower shackle": 0.995,
+      "glass insulator big shackle": 0.5643,
+      "glass insulator small shackle": 0.5797,
+      "glass insulator tower shackle": 0.6092,
+      "spiral damper": 0.9949
+    },
+    "p50_ms": 34.7,
+    "p95_ms": 36.3
+  },
+  "int8": {
+    "size_mb": 10.1,
+    "mAP50": 0.889,
+    "mAP50_95": 0.7103,
+    "per_class_ap50": {
+      "yoke": 0.9479,
+      "yoke suspension": 0.9834,
+      "spacer": 0.8958,
+      "stockbridge damper": 0.9688,
+      "lightning rod shackle": 0.7923,
+      "lightning rod suspension": 0.995,
+      "polymer insulator": 0.9894,
+      "glass insulator": 0.9634,
+      "tower id plate": 0.995,
+      "vari-grip": 0.9945,
+      "polymer insulator lower shackle": 0.8898,
+      "polymer insulator upper shackle": 0.9781,
+      "polymer insulator tower shackle": 0.995,
+      "glass insulator big shackle": 0.568,
+      "glass insulator small shackle": 0.552,
+      "glass insulator tower shackle": 0.6093,
+      "spiral damper": 0.9948
+    },
+    "p50_ms": 30.1,
+    "p95_ms": 32.1
+  },
+  "classifier": {
+    "balanced_accuracy": 0.9599,
+    "per_class_recall": {
+      "glass-insulator__good": 0.9655,
+      "glass-insulator__missing-cap": 0.7,
+      "lightning-rod-suspension__good": 1.0,
+      "lightning-rod-suspension__rust": 0.95,
+      "polymer-insulator-upper-shackle__good": 1.0,
+      "polymer-insulator-upper-shackle__rust": 0.9697,
+      "vari-grip__bird-nest": 1.0,
+      "vari-grip__good": 0.9748,
+      "vari-grip__rust": 1.0,
+      "yoke-suspension__good": 0.9984,
+      "yoke-suspension__rust": 1.0
+    },
+    "n_test": 6417,
+    "latency_p50_ms": 11.3
+  }
+}
