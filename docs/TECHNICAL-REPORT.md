@@ -293,6 +293,13 @@ both the file and the interface.
 - **Latency is measured on Apple M5**, not on the deployment target.
   x86 CPUs with VNNI should favour INT8 more; those figures are not yet
   collected.
+- **Baselines are compared against reported numbers, not re-run.** The
+  InsPLAD authors publish no trained checkpoints (the repository contains
+  only a README, licence, and docs), so DetectoRS was not re-evaluated
+  here. The comparison relies on the figures reported in the paper and on
+  the metric definition stated there. Standard practice, but it means any
+  difference in evaluation implementation between their pipeline and
+  Ultralytics' would not be visible.
 - **Split equivalence is inferred**, not confirmed by the authors: the
   official validation split matches the published 80/20-by-tower ratio
   (21.9% of annotations), but no explicit statement ties the shipped
