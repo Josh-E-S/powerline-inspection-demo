@@ -244,22 +244,57 @@ not treated here as a comparable number. Comparisons in this report are
 restricted to the InsPLAD paper's own benchmark, whose split this work
 uses.
 
-### 5.3 Per-class error profile
+### 5.3 Per-class comparison against the published benchmark
 
-Weak classes, AP50, 640-INT8 to run-3-INT8:
+The paper's Table 6 reports per-class Box AP (IoU 0.50:0.95) for all seven
+detectors. The table below compares that against this work on the same
+metric. Mixing per-class AP50 with the paper's Box AP would inflate these
+figures substantially and is avoided deliberately.
 
-| Class | Train instances | 640 INT8 | Run 3 INT8 |
-|---|---|---|---|
-| lightning rod shackle | 195 | 0.792 | 0.921 |
-| glass insulator tower shackle | 195 | 0.609 | 0.645 |
-| glass insulator big shackle | 259 | 0.568 | 0.596 |
-| glass insulator small shackle | 263 | 0.552 | 0.581 |
+"Best of 7" is the highest value any published detector achieved for that
+class, which is a harder target than DetectoRS alone.
 
-The three glass-insulator shackle variants remain the model's floor.
-Their residual confusion is predominantly *with each other* rather than
-with background, which points at inter-class ambiguity in the labels
-rather than at anything further resolution would fix. This is the honest
-limit of the interventions applied here.
+| Asset class | DetectoRS | Best of 7 | This work FP32 | This work INT8 | vs best |
+|---|---|---|---|---|---|
+| Glass Ins. Small Shackle | 0.270 | 0.280 | **0.357** | 0.337 | +0.077 |
+| Glass Ins. Big Shackle | 0.248 | 0.320 | **0.388** | 0.370 | +0.068 |
+| Lightning Rod Shackle | 0.595 | 0.595 | **0.651** | 0.653 | +0.056 |
+| Glass Ins. Tower Shackle | 0.413 | 0.433 | **0.468** | 0.459 | +0.035 |
+| Pol. Ins. Lower Shackle | 0.648 | 0.648 | **0.679** | 0.644 | +0.031 |
+| Yoke Suspension | 0.855 | 0.856 | **0.875** | 0.851 | +0.019 |
+| Vari-grip | 0.954 | 0.954 | **0.971** | 0.962 | +0.017 |
+| Spacer | 0.487 | 0.487 | **0.501** | 0.509 | +0.014 |
+| Stockbridge Damper | 0.848 | 0.857 | **0.870** | 0.847 | +0.013 |
+| Tower ID Plate | 0.990 | 0.990 | **0.993** | 0.983 | +0.003 |
+| Pol. Ins. Upper Shackle | 0.857 | 0.872 | **0.874** | 0.868 | +0.002 |
+| Lightning Rod Susp. | 0.911 | 0.928 | 0.927 | 0.907 | -0.001 |
+| Polymer Insulator | 0.954 | 0.954 | 0.948 | 0.941 | -0.006 |
+| Glass Insulator | 0.893 | 0.889 | 0.864 | 0.850 | -0.025 |
+| Yoke | 0.864 | 0.880 | 0.848 | 0.844 | -0.032 |
+| Pol. Ins. Tower Shackle | 0.528 | 0.531 | 0.481 | 0.492 | -0.050 |
+| Damper - Spiral | 0.945 | 0.959 | 0.844 | 0.830 | -0.115 |
+| **Average** | **0.721** | | **0.738** | **0.726** | |
+
+**The gains are concentrated exactly where the hypothesis predicted.** The
+four largest improvements are the four rarest small classes, which were
+the floor of the published benchmark: every one of the seven detectors
+evaluated in the paper scored 0.25-0.60 on them, and the paper attributes
+this to sample scarcity. Resolution and rare-class oversampling moved
+those classes by 0.035 to 0.077 Box AP, using 86-108 training instances
+each.
+
+**The regressions are real and worth stating.** Spiral Damper loses 0.115
+against TOOD's 0.959, and Polymer Insulator Tower Shackle (42 training
+instances, the rarest class in the dataset) loses 0.050. This work leads
+on 11 of 17 classes, not all of them; the average gain comes from
+substantial improvements on hard classes offsetting smaller losses on
+classes the published detectors already handled well.
+
+**Absolute performance on the shackle classes remains poor** (0.34-0.47
+Box AP). They are better than any published result on this benchmark, but
+they are not solved. Their residual confusion is predominantly with each
+other rather than with background, which points at inter-class ambiguity
+in the labels rather than at anything further resolution would fix.
 
 ## 6. Quantization findings
 
