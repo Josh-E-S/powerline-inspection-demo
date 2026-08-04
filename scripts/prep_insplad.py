@@ -53,8 +53,8 @@ def load_coco(path: Path):
 
 def dedupe_images(coco):
     """Collapse duplicate image entries (same file_name) to one canonical id."""
-    canon = {}          # file_name -> canonical image dict
-    id_map = {}         # original image id -> canonical image id
+    canon = {}  # file_name -> canonical image dict
+    id_map = {}  # original image id -> canonical image id
     for img in coco["images"]:
         name = img["file_name"]
         if name in canon:
@@ -93,7 +93,10 @@ def write_split(images, boxes, img_dir, split):
         label_path = OUT_DET / "labels" / split / f"{stem}.txt"
         label_path.parent.mkdir(parents=True, exist_ok=True)
         label_path.write_text("\n".join(lines) + ("\n" if lines else ""))
-        link(OUT_DET / "images" / split / img["file_name"], img_dir / img["file_name"])
+        link(
+            OUT_DET / "images" / split / img["file_name"],
+            img_dir / img["file_name"],
+        )
     return n_boxes
 
 
@@ -117,7 +120,10 @@ def prep_detection():
 
     counts = {}
     for split, imgs in splits.items():
-        counts[split] = (len(imgs), write_split(imgs, boxes, RAW / "train", split))
+        counts[split] = (
+            len(imgs),
+            write_split(imgs, boxes, RAW / "train", split),
+        )
 
     test_images, test_id_map = dedupe_images(test_coco)
     test_boxes = collect_boxes(test_coco, test_id_map, cat_to_yolo)
@@ -152,7 +158,10 @@ def prep_fault():
 
     for asset_dir in sorted(p for p in src.iterdir() if p.is_dir()):
         asset = asset_dir.name
-        for raw_split, out_of in (("train", ("train", "val")), ("val", ("test",))):
+        for raw_split, out_of in (
+            ("train", ("train", "val")),
+            ("val", ("test",)),
+        ):
             for cond_dir in sorted(
                 p for p in (asset_dir / raw_split).iterdir() if p.is_dir()
             ):
@@ -195,7 +204,12 @@ def prep_fault():
 
 
 def main():
-    for req in (RAW / "annotations", RAW / "train", RAW / "val", RAW / "defect_supervised"):
+    for req in (
+        RAW / "annotations",
+        RAW / "train",
+        RAW / "val",
+        RAW / "defect_supervised",
+    ):
         if not req.exists():
             sys.exit(f"Missing {req}. See data/README.md for download steps.")
     prep_detection()

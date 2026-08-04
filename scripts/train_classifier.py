@@ -37,20 +37,26 @@ def device():
 
 
 def loaders(batch_size, workers, smoke=False):
-    train_tf = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(15),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
-    eval_tf = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
+    train_tf = transforms.Compose(
+        [
+            transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            transforms.ColorJitter(
+                brightness=0.2, contrast=0.2, saturation=0.2
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
+    eval_tf = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
     train_ds = datasets.ImageFolder(DATA / "train", train_tf)
     val_ds = datasets.ImageFolder(DATA / "val", eval_tf)
 
@@ -62,10 +68,20 @@ def loaders(batch_size, workers, smoke=False):
         replacement=True,
         generator=torch.Generator().manual_seed(SEED),
     )
-    train_dl = DataLoader(train_ds, batch_size=batch_size, sampler=sampler,
-                          num_workers=workers, pin_memory=True)
-    val_dl = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
-                        num_workers=workers, pin_memory=True)
+    train_dl = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        sampler=sampler,
+        num_workers=workers,
+        pin_memory=True,
+    )
+    val_dl = DataLoader(
+        val_ds,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=workers,
+        pin_memory=True,
+    )
     return train_dl, val_dl, train_ds.classes
 
 
@@ -89,16 +105,26 @@ def main():
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--lr", type=float, default=1e-4)
-    ap.add_argument("--patience", type=int, default=10,
-                    help="early stop after N epochs without val improvement")
+    ap.add_argument(
+        "--patience",
+        type=int,
+        default=10,
+        help="early stop after N epochs without val improvement",
+    )
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--name", default="cls_effv2s")
     ap.add_argument("--fresh", action="store_true")
-    ap.add_argument("--runs-dir", default=str(REPO / "runs"),
-                    help="checkpoint/metrics root; point at a persistent "
-                         "mount (e.g. Google Drive) on ephemeral instances")
-    ap.add_argument("--smoke", action="store_true",
-                    help="pipeline check: 2 epochs on ~1k sampled crops")
+    ap.add_argument(
+        "--runs-dir",
+        default=str(REPO / "runs"),
+        help="checkpoint/metrics root; point at a persistent "
+        "mount (e.g. Google Drive) on ephemeral instances",
+    )
+    ap.add_argument(
+        "--smoke",
+        action="store_true",
+        help="pipeline check: 2 epochs on ~1k sampled crops",
+    )
     args = ap.parse_args()
     if args.smoke:
         args.epochs = 2
@@ -116,7 +142,8 @@ def main():
     n = len(classes)
 
     model = models.efficientnet_v2_s(
-        weights=models.EfficientNet_V2_S_Weights.IMAGENET1K_V1)
+        weights=models.EfficientNet_V2_S_Weights.IMAGENET1K_V1
+    )
     model.classifier[1] = nn.Linear(model.classifier[1].in_features, n)
     model.to(dev)
 
@@ -149,23 +176,40 @@ def main():
         sched.step()
 
         bacc = balanced_accuracy(model, val_dl, n, dev)
-        row = {"epoch": epoch, "train_loss": running / seen,
-               "val_balanced_acc": round(bacc, 4)}
+        row = {
+            "epoch": epoch,
+            "train_loss": running / seen,
+            "val_balanced_acc": round(bacc, 4),
+        }
         print(row)
         log.write(json.dumps(row) + "\n")
         log.flush()
 
         if bacc > best_bacc:
             best_bacc, since_best = bacc, 0
-            torch.save({"model": model.state_dict(), "classes": classes,
-                        "arch": "efficientnet_v2_s"}, best_path)
+            torch.save(
+                {
+                    "model": model.state_dict(),
+                    "classes": classes,
+                    "arch": "efficientnet_v2_s",
+                },
+                best_path,
+            )
         else:
             since_best += 1
-        torch.save({"model": model.state_dict(), "opt": opt.state_dict(),
-                    "sched": sched.state_dict(), "epoch": epoch,
-                    "best_bacc": best_bacc, "since_best": since_best,
-                    "classes": classes,
-                    "arch": "efficientnet_v2_s"}, last_path)
+        torch.save(
+            {
+                "model": model.state_dict(),
+                "opt": opt.state_dict(),
+                "sched": sched.state_dict(),
+                "epoch": epoch,
+                "best_bacc": best_bacc,
+                "since_best": since_best,
+                "classes": classes,
+                "arch": "efficientnet_v2_s",
+            },
+            last_path,
+        )
         if since_best >= args.patience:
             print(f"Early stop: no val improvement in {args.patience} epochs.")
             break

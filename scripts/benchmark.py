@@ -38,8 +38,11 @@ SEED = 42
 
 def cpu_name() -> str:
     if platform.system() == "Darwin":
-        return subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"],
-                              capture_output=True, text=True).stdout.strip()
+        return subprocess.run(
+            ["sysctl", "-n", "machdep.cpu.brand_string"],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
     if platform.system() == "Linux":
         for line in Path("/proc/cpuinfo").read_text().splitlines():
             if line.startswith("model name"):
@@ -52,8 +55,10 @@ def letterbox(path: Path, size: int) -> np.ndarray:
     r = min(size / img.width, size / img.height)
     nw, nh = round(img.width * r), round(img.height * r)
     canvas = Image.new("RGB", (size, size), (114, 114, 114))
-    canvas.paste(img.resize((nw, nh), Image.BILINEAR),
-                 ((size - nw) // 2, (size - nh) // 2))
+    canvas.paste(
+        img.resize((nw, nh), Image.BILINEAR),
+        ((size - nw) // 2, (size - nh) // 2),
+    )
     return np.asarray(canvas, np.float32).transpose(2, 0, 1)[None] / 255.0
 
 
@@ -61,28 +66,42 @@ def detector_accuracy(onnx_path: Path, imgsz: int) -> dict:
     from ultralytics import YOLO
 
     m = YOLO(str(onnx_path), task="detect")
-    r = m.val(data=str(REPO / "data" / "yolo" / "insplad.yaml"),
-              split="test", imgsz=imgsz, device="cpu", verbose=False,
-              project=str(BENCH), name=f"val_{onnx_path.stem}", exist_ok=True)
+    r = m.val(
+        data=str(REPO / "data" / "yolo" / "insplad.yaml"),
+        split="test",
+        imgsz=imgsz,
+        device="cpu",
+        verbose=False,
+        project=str(BENCH),
+        name=f"val_{onnx_path.stem}",
+        exist_ok=True,
+    )
     idx = r.box.ap_class_index
-    per_class_ap50 = {r.names[i]: round(float(ap), 4)
-                      for i, ap in zip(idx, r.box.ap50)}
+    per_class_ap50 = {
+        r.names[i]: round(float(ap), 4)
+        for i, ap in zip(idx, r.box.ap50, strict=True)
+    }
     # Box AP (IoU 0.50:0.95) per class: this is the metric the InsPLAD
     # paper's per-class table uses, so keep both to avoid comparing
     # a lenient AP50 against a strict Box AP.
-    per_class_ap = {r.names[i]: round(float(v), 4)
-                    for i, v in zip(idx, r.box.maps[idx])}
-    return {"mAP50": round(float(r.box.map50), 4),
-            "mAP50_95": round(float(r.box.map), 4),
-            "per_class_ap50": per_class_ap50,
-            "per_class_ap50_95": per_class_ap}
+    per_class_ap = {
+        r.names[i]: round(float(v), 4)
+        for i, v in zip(idx, r.box.maps[idx], strict=True)
+    }
+    return {
+        "mAP50": round(float(r.box.map50), 4),
+        "mAP50_95": round(float(r.box.map), 4),
+        "per_class_ap50": per_class_ap50,
+        "per_class_ap50_95": per_class_ap,
+    }
 
 
 def latency(onnx_path: Path, files, size: int, runs: int, warmup: int = 10):
     import onnxruntime as ort
 
-    sess = ort.InferenceSession(str(onnx_path),
-                                providers=["CPUExecutionProvider"])
+    sess = ort.InferenceSession(
+        str(onnx_path), providers=["CPUExecutionProvider"]
+    )
     name = sess.get_inputs()[0].name
     batches = [letterbox(f, size) for f in files[:24]]
     for i in range(warmup):
@@ -93,24 +112,28 @@ def latency(onnx_path: Path, files, size: int, runs: int, warmup: int = 10):
         t0 = time.perf_counter()
         sess.run(None, {name: x})
         times.append((time.perf_counter() - t0) * 1000)
-    return {"p50_ms": round(float(np.percentile(times, 50)), 1),
-            "p95_ms": round(float(np.percentile(times, 95)), 1)}
+    return {
+        "p50_ms": round(float(np.percentile(times, 50)), 1),
+        "p95_ms": round(float(np.percentile(times, 95)), 1),
+    }
 
 
 def classifier_metrics(runs: int) -> dict:
     import onnxruntime as ort
 
     classes = json.loads((MODELS / "classifier_classes.json").read_text())
-    sess = ort.InferenceSession(str(MODELS / "classifier.onnx"),
-                                providers=["CPUExecutionProvider"])
+    sess = ort.InferenceSession(
+        str(MODELS / "classifier.onnx"), providers=["CPUExecutionProvider"]
+    )
     mean = np.array([0.485, 0.456, 0.406], np.float32).reshape(3, 1, 1)
     std = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
 
     def prep(path):
         img = Image.open(path).convert("RGB")
         r = 256 / min(img.size)
-        img = img.resize((round(img.width * r), round(img.height * r)),
-                         Image.BILINEAR)
+        img = img.resize(
+            (round(img.width * r), round(img.height * r)), Image.BILINEAR
+        )
         left, top = (img.width - 224) // 2, (img.height - 224) // 2
         img = img.crop((left, top, left + 224, top + 224))
         arr = np.asarray(img, np.float32).transpose(2, 0, 1) / 255.0
@@ -128,17 +151,26 @@ def classifier_metrics(runs: int) -> dict:
             total[ci] += 1
             correct[ci] += int(logits.argmax()) == ci
     recalls = correct[total > 0] / total[total > 0]
-    return {"balanced_accuracy": round(float(recalls.mean()), 4),
-            "per_class_recall": {c: round(float(correct[i] / total[i]), 4)
-                                 for i, c in enumerate(classes) if total[i]},
-            "n_test": int(total.sum()),
-            "latency_p50_ms": round(float(np.percentile(times, 50)), 1)}
+    return {
+        "balanced_accuracy": round(float(recalls.mean()), 4),
+        "per_class_recall": {
+            c: round(float(correct[i] / total[i]), 4)
+            for i, c in enumerate(classes)
+            if total[i]
+        },
+        "n_test": int(total.sum()),
+        "latency_p50_ms": round(float(np.percentile(times, 50)), 1),
+    }
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--imgsz", type=int, default=640,
-                    help="must match detector training/export imgsz")
+    ap.add_argument(
+        "--imgsz",
+        type=int,
+        default=640,
+        help="must match detector training/export imgsz",
+    )
     ap.add_argument("--runs", type=int, default=200)
     ap.add_argument("--skip-classifier", action="store_true")
     args = ap.parse_args()
@@ -178,9 +210,11 @@ def main():
     print("\n" + md)
     if "classifier" in results:
         c = results["classifier"]
-        print(f"\nClassifier: balanced accuracy {c['balanced_accuracy']} "
-              f"on {c['n_test']} test crops, p50 {c['latency_p50_ms']} ms/crop")
-    print(f"\nFull results: bench/results.json, table: bench/table.md")
+        print(
+            f"\nClassifier: balanced accuracy {c['balanced_accuracy']} "
+            f"on {c['n_test']} test crops, p50 {c['latency_p50_ms']} ms/crop"
+        )
+    print("\nFull results: bench/results.json, table: bench/table.md")
 
 
 if __name__ == "__main__":

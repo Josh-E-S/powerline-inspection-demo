@@ -41,11 +41,17 @@ CORRIDOR = [(32.206, -110.745), (32.130, -110.601), (32.045, -110.451)]
 # ---------------------------------------------------------------- models
 import onnxruntime as ort  # noqa: E402
 
-DET = ort.InferenceSession(str(HERE / "models" / "detector_int8.onnx"),
-                           providers=["CPUExecutionProvider"])
-CLS = ort.InferenceSession(str(HERE / "models" / "classifier.onnx"),
-                           providers=["CPUExecutionProvider"])
-CLS_CLASSES = json.loads((HERE / "models" / "classifier_classes.json").read_text())
+DET = ort.InferenceSession(
+    str(HERE / "models" / "detector_int8.onnx"),
+    providers=["CPUExecutionProvider"],
+)
+CLS = ort.InferenceSession(
+    str(HERE / "models" / "classifier.onnx"),
+    providers=["CPUExecutionProvider"],
+)
+CLS_CLASSES = json.loads(
+    (HERE / "models" / "classifier_classes.json").read_text()
+)
 DET_INPUT = DET.get_inputs()[0].name
 NAMES = ast.literal_eval(DET.get_modelmeta().custom_metadata_map["names"])
 PR_TABLE = json.loads((HERE / "pr_table.json").read_text())
@@ -79,8 +85,9 @@ def nms(boxes, scores, iou_thr):
         yy2 = np.minimum(boxes[i, 3], boxes[order[1:], 3])
         inter = np.clip(xx2 - xx1, 0, None) * np.clip(yy2 - yy1, 0, None)
         area_i = (boxes[i, 2] - boxes[i, 0]) * (boxes[i, 3] - boxes[i, 1])
-        area_o = ((boxes[order[1:], 2] - boxes[order[1:], 0])
-                  * (boxes[order[1:], 3] - boxes[order[1:], 1]))
+        area_o = (boxes[order[1:], 2] - boxes[order[1:], 0]) * (
+            boxes[order[1:], 3] - boxes[order[1:], 1]
+        )
         iou = inter / (area_i + area_o - inter + 1e-9)
         order = order[1:][iou <= iou_thr]
     return keep
@@ -89,8 +96,10 @@ def nms(boxes, scores, iou_thr):
 def classify_crop(img: Image.Image, box, prefix):
     crop = img.crop(box)
     r = 256 / min(crop.size)
-    crop = crop.resize((max(1, round(crop.width * r)),
-                        max(1, round(crop.height * r))), Image.BILINEAR)
+    crop = crop.resize(
+        (max(1, round(crop.width * r)), max(1, round(crop.height * r))),
+        Image.BILINEAR,
+    )
     left, top = (crop.width - 224) // 2, (crop.height - 224) // 2
     crop = crop.crop((left, top, left + 224, top + 224))
     x = np.asarray(crop, np.float32).transpose(2, 0, 1) / 255.0
@@ -130,13 +139,22 @@ def run_pipeline(image: Image.Image):
         y1 = (xy[i, 1] - py) / r
         x2 = (xy[i, 2] - px) / r
         y2 = (xy[i, 3] - py) / r
-        box = (max(0, int(x1)), max(0, int(y1)),
-               min(img.width, int(x2)), min(img.height, int(y2)))
+        box = (
+            max(0, int(x1)),
+            max(0, int(y1)),
+            min(img.width, int(x2)),
+            min(img.height, int(y2)),
+        )
         if box[2] - box[0] < 2 or box[3] - box[1] < 2:
             continue
         name = NAMES[int(cls_ids[i])]
-        det = {"asset": name, "conf": round(float(confs[i]), 3),
-               "box": box, "condition": None, "cond_conf": None}
+        det = {
+            "asset": name,
+            "conf": round(float(confs[i]), 3),
+            "box": box,
+            "condition": None,
+            "cond_conf": None,
+        }
         if name in ASSET_MAP:
             cond, p = classify_crop(img, box, ASSET_MAP[name])
             det["condition"], det["cond_conf"] = cond, round(p, 3)
@@ -158,24 +176,30 @@ def render(image, dets, thr):
         color = (0, 200, 83) if ok else (255, 145, 0)
         draw.rectangle(d["box"], outline=color, width=w)
         label = d["asset"] + (f" | {d['condition']}" if d["condition"] else "")
-        cond = (f"{d['condition']} ({d['cond_conf']:.2f})"
-                if d["condition"] else "n/a")
+        cond = (
+            f"{d['condition']} ({d['cond_conf']:.2f})"
+            if d["condition"]
+            else "n/a"
+        )
         if ok:
             accepted.append([d["asset"], f"{d['conf']:.2f}", cond])
         else:
             crop = image.convert("RGB").crop(d["box"])
             crop.thumbnail((200, 200))
-            queue.append((np.asarray(crop),
-                          f"{label} | det conf {d['conf']:.2f}"))
+            queue.append(
+                (np.asarray(crop), f"{label} | det conf {d['conf']:.2f}")
+            )
     return img, accepted, queue, pr_text(thr)
 
 
 def pr_text(thr):
     p = float(np.interp(thr, PR_TABLE["thresholds"], PR_TABLE["precision"]))
     r = float(np.interp(thr, PR_TABLE["thresholds"], PR_TABLE["recall"]))
-    return (f"**At threshold {thr:.2f}: precision {p:.3f}, recall {r:.3f}**  \n"
-            "Measured on the held-out test set (2,626 images), "
-            "macro-averaged over 17 classes. Dataset-level, not per-image.")
+    return (
+        f"**At threshold {thr:.2f}: precision {p:.3f}, recall {r:.3f}**  \n"
+        "Measured on the held-out test set (2,626 images), "
+        "macro-averaged over 17 classes. Dataset-level, not per-image."
+    )
 
 
 def analyze(image, thr):
@@ -193,8 +217,12 @@ def reslider(image, dets, thr):
 def export_geojson(image, dets, thr):
     if not dets:
         return None
-    seed = int(hashlib.sha256(
-        (str(len(dets)) + str(dets[0]["box"])).encode()).hexdigest()[:8], 16)
+    seed = int(
+        hashlib.sha256(
+            (str(len(dets)) + str(dets[0]["box"])).encode()
+        ).hexdigest()[:8],
+        16,
+    )
     rng = np.random.default_rng(seed)
     t = rng.uniform(0, 1)
     features = []
@@ -206,22 +234,29 @@ def export_geojson(image, dets, thr):
         (la1, lo1), (la2, lo2) = CORRIDOR[seg], CORRIDOR[seg + 1]
         lat = la1 + (la2 - la1) * f + float(rng.normal(0, 0.0004))
         lon = lo1 + (lo2 - lo1) * f + float(rng.normal(0, 0.0004))
-        features.append({
-            "type": "Feature",
-            "geometry": {"type": "Point",
-                         "coordinates": [round(lon, 6), round(lat, 6)]},
-            "properties": {
-                "asset_class": d["asset"],
-                "condition": d["condition"] or "not assessed",
-                "detection_confidence": d["conf"],
-                "condition_confidence": d["cond_conf"],
-                "review_status": ("auto_accepted" if d["conf"] >= thr
-                                  else "routed_to_human_review"),
-                "timestamp": now,
-                "note": "coordinates SIMULATED along a transmission "
-                        "corridor east of Tucson, AZ for demo purposes",
-            },
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [round(lon, 6), round(lat, 6)],
+                },
+                "properties": {
+                    "asset_class": d["asset"],
+                    "condition": d["condition"] or "not assessed",
+                    "detection_confidence": d["conf"],
+                    "condition_confidence": d["cond_conf"],
+                    "review_status": (
+                        "auto_accepted"
+                        if d["conf"] >= thr
+                        else "routed_to_human_review"
+                    ),
+                    "timestamp": now,
+                    "note": "coordinates SIMULATED along a transmission "
+                    "corridor east of Tucson, AZ for demo purposes",
+                },
+            }
+        )
     geo = {"type": "FeatureCollection", "features": features}
     path = Path(tempfile.mkdtemp()) / "findings.geojson"
     path.write_text(json.dumps(geo, indent=2))
@@ -241,22 +276,36 @@ with gr.Blocks(title="Powerline Inspection Demo") as demo:
     with gr.Row():
         with gr.Column(scale=1):
             inp = gr.Image(type="pil", label="UAV image")
-            gr.Examples([str(p) for p in sorted((HERE / "examples").glob("*.jpg"))],
-                        inputs=inp)
+            gr.Examples(
+                [str(p) for p in sorted((HERE / "examples").glob("*.jpg"))],
+                inputs=inp,
+            )
             btn = gr.Button("Analyze", variant="primary")
-            thr = gr.Slider(0.05, 0.95, value=0.5, step=0.05,
-                            label="Confidence threshold (detection)")
+            thr = gr.Slider(
+                0.05,
+                0.95,
+                value=0.5,
+                step=0.05,
+                label="Confidence threshold (detection)",
+            )
             pr_md = gr.Markdown(pr_text(0.5))
         with gr.Column(scale=2):
-            out_img = gr.Image(label="Detections (green = auto-accepted, "
-                                     "orange = routed to review)")
+            out_img = gr.Image(
+                label="Detections (green = auto-accepted, "
+                "orange = routed to review)"
+            )
             accepted_df = gr.Dataframe(
                 headers=["asset", "det conf", "condition"],
-                label="Auto-accepted findings", interactive=False)
-    gr.Markdown("## Human review queue\nDetections below the threshold are "
-                "routed here instead of being discarded.")
-    queue_gal = gr.Gallery(label="Routed to human review", columns=6,
-                           height=240)
+                label="Auto-accepted findings",
+                interactive=False,
+            )
+    gr.Markdown(
+        "## Human review queue\nDetections below the threshold are "
+        "routed here instead of being discarded."
+    )
+    queue_gal = gr.Gallery(
+        label="Routed to human review", columns=6, height=240
+    )
     with gr.Row():
         export_btn = gr.Button("Export findings (GeoJSON)")
         geo_file = gr.File(label="GeoJSON (simulated coordinates)")
@@ -266,10 +315,16 @@ with gr.Blocks(title="Powerline Inspection Demo") as demo:
         "[InsPLAD](https://github.com/andreluizbvs/InsPLAD) (CC BY-NC 3.0)."
     )
 
-    btn.click(analyze, [inp, thr],
-              [dets_state, out_img, accepted_df, queue_gal, pr_md])
-    thr.release(reslider, [inp, dets_state, thr],
-                [out_img, accepted_df, queue_gal, pr_md])
+    btn.click(
+        analyze,
+        [inp, thr],
+        [dets_state, out_img, accepted_df, queue_gal, pr_md],
+    )
+    thr.release(
+        reslider,
+        [inp, dets_state, thr],
+        [out_img, accepted_df, queue_gal, pr_md],
+    )
     export_btn.click(export_geojson, [inp, dets_state, thr], geo_file)
 
 if __name__ == "__main__":

@@ -1,5 +1,11 @@
 # Powerline Inspection Demo
 
+[![CI](https://github.com/Josh-E-S/powerline-inspection-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/Josh-E-S/powerline-inspection-demo/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20demo-Hugging%20Face-yellow)](https://huggingface.co/spaces/ACloudCenter/powerline-inspection-demo)
+[![License](https://img.shields.io/badge/code-MIT-blue)](LICENSE)
+[![Models](https://img.shields.io/badge/models-CC%20BY--NC%203.0-lightgrey)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](requirements.txt)
+
 **[Try the live demo](https://huggingface.co/spaces/ACloudCenter/powerline-inspection-demo)** ·
 **[Technical report](docs/TECHNICAL-REPORT.md)** ·
 **[Full results](docs/results/RESULTS.md)**
