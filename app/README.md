@@ -7,7 +7,7 @@ sdk: gradio
 sdk_version: 6.22.0
 app_file: app.py
 pinned: false
-short_description: UAV powerline inspection with a human review queue and GeoJSON export
+short_description: UAV powerline inspection with human review and GeoJSON
 ---
 
 # Powerline Inspection Demo
