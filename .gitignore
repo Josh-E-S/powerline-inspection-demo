@@ -22,3 +22,6 @@ model/
 # OS
 .DS_Store
 bench/
+
+# Working notes: spec, milestones, references. Local only.
+notes/

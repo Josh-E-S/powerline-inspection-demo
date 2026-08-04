@@ -1,6 +1,6 @@
 # Powerline Inspection Demo: Plain-English Overview
 
-This is the companion doc to the spec. The spec says *how* we build it. This explains *what* we're building, *why*, and what each piece proves.
+A non-technical companion to the README. It explains what the system does, why each piece exists, and what problem it addresses in the field.
 
 ---
 
@@ -66,9 +66,9 @@ This is a demo-scale replica, not a production system, and it says so plainly. B
 - Condition labels are image-level ("this insulator is corroded"), not pixel-level defect outlines. The framing is "detect components and classify condition," never "localize defects."
 - The map coordinates are simulated along a real corridor for demonstration. The app and README both say so.
 
-## The weekend plan, in one breath
+## The plan, in one breath
 
-Saturday: get the dataset, convert it, train on a rented GPU (~$0.25/hr, total spend under $5), then export, quantize, and benchmark. Sunday: build the Gradio app, deploy to Hugging Face Spaces, write the README with the diagram and error analysis.
+Get the dataset and convert it, train the two models on a rented GPU, then export, quantize, and benchmark. Build the demo app, deploy it, and write up the results with per-class error analysis.
 
 ## The one-line pitch
 
