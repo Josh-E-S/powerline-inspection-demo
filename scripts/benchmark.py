@@ -64,11 +64,18 @@ def detector_accuracy(onnx_path: Path, imgsz: int) -> dict:
     r = m.val(data=str(REPO / "data" / "yolo" / "insplad.yaml"),
               split="test", imgsz=imgsz, device="cpu", verbose=False,
               project=str(BENCH), name=f"val_{onnx_path.stem}", exist_ok=True)
-    per_class = {r.names[i]: round(float(ap), 4)
-                 for i, ap in zip(r.box.ap_class_index, r.box.ap50)}
+    idx = r.box.ap_class_index
+    per_class_ap50 = {r.names[i]: round(float(ap), 4)
+                      for i, ap in zip(idx, r.box.ap50)}
+    # Box AP (IoU 0.50:0.95) per class: this is the metric the InsPLAD
+    # paper's per-class table uses, so keep both to avoid comparing
+    # a lenient AP50 against a strict Box AP.
+    per_class_ap = {r.names[i]: round(float(v), 4)
+                    for i, v in zip(idx, r.box.maps[idx])}
     return {"mAP50": round(float(r.box.map50), 4),
             "mAP50_95": round(float(r.box.map), 4),
-            "per_class_ap50": per_class}
+            "per_class_ap50": per_class_ap50,
+            "per_class_ap50_95": per_class_ap}
 
 
 def latency(onnx_path: Path, files, size: int, runs: int, warmup: int = 10):

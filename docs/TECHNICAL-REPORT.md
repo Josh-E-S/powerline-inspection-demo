@@ -19,8 +19,9 @@ deployment-oriented constraint: the resulting model must run on a
 commodity CPU at a size suitable for free-tier hosting.
 
 On the same evaluation split, a stock YOLO11-s trained at 1280px with
-rare-class oversampling reaches **0.738 mAP50-95 and 0.912 mAP50**,
-exceeding the published DetectoRS results of 0.721 AP and 0.885 AP50.
+rare-class oversampling reaches **0.738 Box AP and 0.912 AP50**, exceeding
+the best published results on this benchmark (0.721 Box AP, DetectoRS;
+0.891 AP50, RetinaNet).
 After INT8 static quantization to **10.6 MB**, the model retains **0.726
 mAP50-95 and 0.906 mAP50**, so the compressed model alone still exceeds
 the published detection baseline. A companion condition classifier
@@ -86,12 +87,19 @@ Four data issues were found and corrected in `scripts/prep_insplad.py`:
 
 ### 2.2 Splits
 
-The dataset's official validation split (2,626 images, 6,324 instances,
-21.9% of annotations, consistent with the paper's 80/20 split by
-transmission tower) is treated as the **held-out test set** and is
-touched exactly once, by `scripts/benchmark.py`. A separate validation
-set (794 images, 10% of train, seed 42) is carved from the training data
-for early stopping and quantization calibration.
+The dataset's official validation split (2,626 images, 6,324 instances)
+is treated as the **held-out test set** and is touched exactly once, by
+`scripts/benchmark.py`. A separate validation set (794 images, 10% of
+train, seed 42) is carved from the training data for early stopping and
+quantization calibration.
+
+**Split equivalence is verified, not assumed.** Per-class instance counts
+in this split match the paper's Table 3 train/test column exactly for all
+17 classes. Examples: Glass Insulator Big Shackle 110/149 (ours 101 train
++ 9 val = 110, test 149), Small Shackle 128/135, Tower Shackle 98/97,
+Stockbridge Damper 5699/1254, Spiral Damper 831/189. Seventeen
+independent count matches establish that the shipped `val/` folder is the
+paper's test split.
 
 Consequence worth stating: this leaves **7,141 training images against
 the baselines' 7,935**, so the models reported here are trained on ~10%
@@ -134,8 +142,8 @@ comparison for negligible benefit.
 Stock configuration, 120 epochs. Establishes the pipeline and the error
 profile. Per-class analysis showed the deficit concentrated in four
 classes, all small and rare: three glass-insulator shackle variants
-(195-263 training instances each, AP50 0.55-0.61) against 0.89-0.99 for
-every well-represented class.
+(86-108 training instances each after the validation carve-out, AP50
+0.55-0.61) against 0.89-0.99 for every well-represented class.
 
 ### 4.2 Run 2: resolution and oversampling (1280px)
 
@@ -151,7 +159,7 @@ median-to-rarest frequency). Early stopping fired at epoch 67.
 mAP50-95 *declined* to 0.723. Weak classes improved less than validation
 suggested (validation showed 0.90-0.995 for the shackle classes; the test
 set showed 0.62-0.68). The validation split holds 5-20 instances of each
-shackle class against 195-263 in test: the apparent breakthrough was
+shackle class against 97-149 in test: the apparent breakthrough was
 small-sample optimism, caught only because the test split was reserved.
 
 ### 4.3 Run 3: augmentation schedule (1280px, 60 epochs)
@@ -194,13 +202,37 @@ timed runs after warmup.
 ### 5.1 Against published baselines
 
 The InsPLAD paper defines its detection metric as "Box AP from MS COCO,
-also known as AP (with IoU as 0.50:0.95)", and reports for DetectoRS:
-AP 0.721, AP50 0.885, AP75 0.749. Metric definitions therefore match.
+also known as AP (with IoU as 0.50:0.95)", with AP50 and AP75 as
+secondary metrics. Metric definitions therefore match.
 
-| Metric | Published (DetectoRS) | This work (FP32) | This work (INT8, 10.6 MB) |
+The paper's Table 7 benchmarks seven detectors. DetectoRS leads on Box AP
+(0.721) and AP75 (0.749); **RetinaNet leads on AP50 with 0.891**, ahead of
+DetectoRS's 0.885. Comparisons below use the best published value for
+each metric regardless of which method produced it.
+
+| Metric | Best published | This work (FP32) | This work (INT8, 10.6 MB) |
 |---|---|---|---|
-| mAP50-95 | 0.721 | **0.738** | **0.726** |
-| mAP50 | 0.885 | **0.912** | **0.906** |
+| Box AP (0.50:0.95) | 0.721 (DetectoRS) | **0.738** | **0.726** |
+| AP50 | 0.891 (RetinaNet) | **0.912** | **0.906** |
+| AP75 | 0.749 (DetectoRS) | not computed | not computed |
+
+### 5.2 Model size and throughput
+
+The paper reports weights size and throughput for every detector, which
+makes the deployment contrast concrete. Their throughput is measured on
+an RTX 3080Ti GPU; ours on an Apple M5 CPU. The hardware differs and the
+comparison favours this work, so it is stated plainly rather than
+presented as like-for-like.
+
+| Model | Params | Weights | Throughput | Hardware | Box AP |
+|---|---|---|---|---|---|
+| DetectoRS | 123.4M | 990.9 MB | 8.8 img/s | RTX 3080Ti GPU | 0.721 |
+| SSD (lightest published) | 36M | 215.2 MB | 48.3 img/s | RTX 3080Ti GPU | 0.674 |
+| This work, 1280 INT8 | 9.4M | 10.6 MB | 7.9 img/s | Apple M5 CPU | **0.726** |
+| This work, 640 INT8 | 9.4M | 10.1 MB | 33.2 img/s | Apple M5 CPU | 0.710 |
+
+The 1280 INT8 model exceeds the best published Box AP at **1/93rd the
+weights size**, running on a CPU rather than a discrete GPU.
 
 Classification: **0.960** balanced accuracy against the published 0.954
 (EfficientNet), on the fault test split (6,417 crops).
@@ -212,7 +244,7 @@ not treated here as a comparable number. Comparisons in this report are
 restricted to the InsPLAD paper's own benchmark, whose split this work
 uses.
 
-### 5.2 Per-class error profile
+### 5.3 Per-class error profile
 
 Weak classes, AP50, 640-INT8 to run-3-INT8:
 
@@ -300,10 +332,10 @@ both the file and the interface.
   the metric definition stated there. Standard practice, but it means any
   difference in evaluation implementation between their pipeline and
   Ultralytics' would not be visible.
-- **Split equivalence is inferred**, not confirmed by the authors: the
-  official validation split matches the published 80/20-by-tower ratio
-  (21.9% of annotations), but no explicit statement ties the shipped
-  `val/` folder to the paper's test split.
+- **Split equivalence is established by count matching**, not by author
+  confirmation: per-class train/test counts match the paper's Table 3 for
+  all 17 classes, which is strong evidence but not a statement from the
+  dataset authors.
 - **AP75 not computed**, so one column of the published table is
   unmatched.
 - **Coordinates are simulated.** No GPS or EXIF data was used.
