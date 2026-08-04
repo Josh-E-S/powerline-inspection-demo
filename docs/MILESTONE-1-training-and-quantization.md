@@ -5,8 +5,8 @@ Status: both models trained, quantized, and benchmarked on the held-out
 test set. App and deployment not yet built. This document records what
 was done, the measured results, published work to compare against, and a
 detailed plan for a second training run intended to meet or beat the
-published numbers. It is written to be handed to a fresh Claude session
-with no other context.
+published numbers. It is written to be picked up cold, with no other
+context than this file.
 
 ## 1. Project context
 
@@ -188,7 +188,7 @@ Pro monthly allotment. Wall clock: one evening.
 4. README per the spec's structure, embedding docs/results/ material.
    Owner's prose rules: no em dashes, natural voice, no marketing tone.
 
-## 7. Handoff notes (for the next Claude session)
+## 7. Handoff notes
 
 - Local layout: repo at
   `~/Desktop/Resume Projects/powerline-inspection-demo`, venv at `.venv`

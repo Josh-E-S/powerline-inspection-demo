@@ -110,7 +110,7 @@ Emit the table as markdown ready to paste into README.
 ## Working Agreements
 
 - Owner's standing preferences: no overclaiming anywhere; every claim survives hostile questioning; no em dashes in written prose; natural voice in README, not AI-sounding marketing language.
-- Plan before building: Claude Code should start by (1) resolving the research tasks above, (2) proposing the class-set decision and repo layout, (3) confirming the split strategy, then build.
+- Plan before building: start by (1) resolving the research tasks above, (2) settling the class-set decision and repo layout, (3) confirming the split strategy, then build.
 - Suggested repo layout:
 
 ```
