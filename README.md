@@ -65,9 +65,16 @@ flowchart LR
     GEO --> GIS["Utility GIS"]
 ```
 
-More detail: [pipeline](diagrams/project-pipeline.md) ·
-[model architecture](diagrams/model-architecture.md) ·
-[app architecture](diagrams/app-architecture.md)
+Only five of the 17 asset classes carry condition labels, so stage two
+runs on those crops alone:
+
+| Asset | Conditions |
+|---|---|
+| glass insulator | good, missing-cap |
+| lightning rod suspension | good, rust |
+| polymer insulator upper shackle | good, rust |
+| vari-grip | good, rust, bird-nest |
+| yoke suspension | good, rust |
 
 ## What is in here
 

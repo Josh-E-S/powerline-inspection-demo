@@ -13,7 +13,7 @@ Mendeley Data:
   https://data.mendeley.com/public-files/datasets/5n3fjgvfyz/files/96707044-99bb-40b2-bf23-6fa1b41ab9b0/file_downloaded
 
 License: CC BY-NC 3.0 (attribution required, non-commercial). Fine for
-this portfolio demo; cite the paper (arXiv 2311.01619) in the README.
+non-commercial use with attribution; cite the paper (arXiv 2311.01619).
 
 Steps:
 
