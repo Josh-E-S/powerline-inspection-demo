@@ -165,7 +165,10 @@ Weak, and why:
 Train instance counts are after the 10% validation carve-out. The three
 glass-insulator shackle variants form one confusion cluster: each has
 around a hundred training examples against 5,159 for the most common
-class, they are physically small, and they look alike. Higher training resolution
+class, and they look alike. They are not small in absolute terms: no
+instance in the dataset falls below 32x32 px, and these classes have
+median boxes of 206-498 px in 1920x1080 images. Scarcity and mutual
+similarity, not size, are what they share. Higher training resolution
 (1280) and rare-class oversampling are the planned levers; both are
 wired into train_detector.py as flags.
 

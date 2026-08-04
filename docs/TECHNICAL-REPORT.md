@@ -141,15 +141,15 @@ comparison for negligible benefit.
 
 Stock configuration, 120 epochs. Establishes the pipeline and the error
 profile. Per-class analysis showed the deficit concentrated in four
-classes, all small and rare: three glass-insulator shackle variants
-(86-108 training instances each after the validation carve-out, AP50
-0.55-0.61) against 0.89-0.99 for every well-represented class.
+rare classes: three glass-insulator shackle variants (86-108 training
+instances each after the validation carve-out, AP50 0.55-0.61) against
+0.89-0.99 for every well-represented class.
 
 ### 4.2 Run 2: resolution and oversampling (1280px)
 
-**Hypothesis.** The weak classes fail because they are physically small
-(a shackle occupies roughly 15px at 640) and rare. Quadrupling input
-pixels and repeating rare-class images should lift them.
+**Hypothesis (partly wrong, see 5.4).** The weak classes were assumed to
+fail because they are small and rare, so quadrupling input pixels and
+repeating rare-class images should lift them.
 
 Implementation: image size 1280, plus a weighted training list repeating
 images containing rare classes (capped 4x, sqrt scaling on
@@ -295,6 +295,37 @@ Box AP). They are better than any published result on this benchmark, but
 they are not solved. Their residual confusion is predominantly with each
 other rather than with background, which points at inter-class ambiguity
 in the labels rather than at anything further resolution would fix.
+
+### 5.4 What actually drives the weak classes
+
+The interventions in runs 2 and 3 were justified by a "small and rare"
+hypothesis. Measuring the annotations directly shows only half of that
+was correct, and it is worth recording because the wrong half was
+assumed rather than checked.
+
+Box dimensions across all 28,933 instances in 1920x1080 images:
+
+- **No instance is small by COCO's definition.** Zero are below 32x32 px,
+  and only 4.4% fall below 96x96.
+- Median box side by class ranges from 124 px (polymer insulator lower
+  shackle) to 725 px (yoke). At 640 letterbox the smallest are still
+  roughly 41 px.
+
+Size does not predict performance here. Stockbridge damper has a smaller
+median box (160 px) than any weak class and scores 0.847 Box AP, on 6,953
+instances. Glass insulator small shackle has a median box of 335 px,
+roughly twice as large, and scores 0.357 on 108 training instances.
+
+What the weak classes share is **scarcity and mutual similarity**: three
+glass-insulator shackle variants, around a hundred training instances
+each, that are confused predominantly with one another rather than with
+background.
+
+Higher resolution did still help those classes, but the mechanism is
+likely fine-grained discrimination between near-identical variants
+benefiting from more detail, not the recovery of objects too small to
+detect. The measured gains stand; the original explanation for them does
+not.
 
 ## 6. Quantization findings
 
