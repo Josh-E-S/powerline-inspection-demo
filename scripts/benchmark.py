@@ -1,20 +1,16 @@
-"""Generate the FP32 vs INT8 comparison table (the centerpiece artifact).
+"""Compare the FP32 and INT8 detectors on the held-out test set.
 
-Measures on CPU, matching the Spaces free-tier deployment:
-- Detector accuracy: mAP50 / mAP50-95 (+ per-class AP) on the held-out
-  test split, via Ultralytics val running each ONNX model. Identical
-  conf/NMS settings for both.
-- Detector latency: p50/p95 over single-image ONNX Runtime inferences
-  after warmup, on test images.
-- Classifier: balanced accuracy on data/fault/test + per-crop latency.
-- File sizes on disk.
+Measures accuracy, single-image latency, and file size for both variants,
+plus balanced accuracy for the condition classifier. Everything runs on
+CPU because that is what the deployment target uses.
 
-This is the only script allowed to touch the test split.
+This is the only script that reads the test split. Training and
+quantization calibration both use a separate validation set.
 
-Emits a ready-to-paste markdown table and a JSON dump to bench/.
+Results are written to bench/results.json, with a markdown summary in
+bench/table.md.
 
-Example:
-  python3 scripts/benchmark.py --imgsz 640
+    python scripts/benchmark.py --imgsz 640
 """
 
 import argparse
@@ -37,6 +33,7 @@ SEED = 42
 
 
 def cpu_name() -> str:
+    """Identify the CPU so reported latencies mean something."""
     if platform.system() == "Darwin":
         return subprocess.run(
             ["sysctl", "-n", "machdep.cpu.brand_string"],
@@ -63,6 +60,7 @@ def letterbox(path: Path, size: int) -> np.ndarray:
 
 
 def detector_accuracy(onnx_path: Path, imgsz: int) -> dict:
+    """Run Ultralytics validation over the test split for one ONNX model."""
     from ultralytics import YOLO
 
     m = YOLO(str(onnx_path), task="detect")
@@ -81,9 +79,9 @@ def detector_accuracy(onnx_path: Path, imgsz: int) -> dict:
         r.names[i]: round(float(ap), 4)
         for i, ap in zip(idx, r.box.ap50, strict=True)
     }
-    # Box AP (IoU 0.50:0.95) per class: this is the metric the InsPLAD
-    # paper's per-class table uses, so keep both to avoid comparing
-    # a lenient AP50 against a strict Box AP.
+    # Both per-class metrics are kept because they are easy to confuse.
+    # The published per-class table uses Box AP at IoU 0.50:0.95, and
+    # comparing our lenient AP50 against it would inflate the result.
     per_class_ap = {
         r.names[i]: round(float(v), 4)
         for i, v in zip(idx, r.box.maps[idx], strict=True)
@@ -97,6 +95,7 @@ def detector_accuracy(onnx_path: Path, imgsz: int) -> dict:
 
 
 def latency(onnx_path: Path, files, size: int, runs: int, warmup: int = 10):
+    """Time single-image inference, reporting the median and 95th percentile."""
     import onnxruntime as ort
 
     sess = ort.InferenceSession(
@@ -119,6 +118,10 @@ def latency(onnx_path: Path, files, size: int, runs: int, warmup: int = 10):
 
 
 def classifier_metrics(runs: int) -> dict:
+    """Score the classifier on the fault test split.
+
+    Balanced accuracy is used because the split is severely skewed.
+    """
     import onnxruntime as ort
 
     classes = json.loads((MODELS / "classifier_classes.json").read_text())

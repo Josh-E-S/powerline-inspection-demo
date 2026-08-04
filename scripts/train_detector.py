@@ -1,19 +1,14 @@
-"""Fine-tune YOLO11 on InsPLAD-det (17 asset classes).
+"""Fine-tune YOLO11 on the 17 InsPLAD asset classes.
 
-Headless and resumable: if the run directory already holds a last.pt, the
-run continues from it automatically (safe on a Vast.ai instance that can
-die mid-run). Checkpoints and metrics land in runs/detect/<name>/.
+Training resumes automatically if the run directory already contains a
+last.pt, which matters on hosted GPUs where sessions get reclaimed
+mid-run. Point --runs-dir at persistent storage and a dropped session
+costs only the current epoch.
 
-Run prep first: python3 scripts/prep_insplad.py
+Run prep first. The test split is never read here.
 
-Examples:
-  python3 scripts/train_detector.py                          # s @ 640 baseline
-  python3 scripts/train_detector.py --imgsz 1280             # resolution push
-  python3 scripts/train_detector.py --model yolo11m.pt --imgsz 1280
-  python3 scripts/train_detector.py --imgsz 1280 --oversample
-
-The test split (data/yolo test key) is never touched here; benchmark.py
-owns it.
+    python scripts/train_detector.py                      # 640 baseline
+    python scripts/train_detector.py --imgsz 1280 --oversample
 """
 
 import argparse
@@ -26,10 +21,13 @@ SEED = 42
 
 
 def build_oversampled_yaml(max_repeat: int = 4) -> Path:
-    """Write a train list where images holding rare classes repeat.
+    """Build a training list that repeats images containing rare classes.
 
-    Repeat factor: sqrt(median_class_freq / rarest_class_in_image), capped.
-    Backgrounds and common-class images stay at 1x.
+    Class counts span two orders of magnitude, from 6,953 instances down
+    to 57, and the rare classes are the ones the model handles worst.
+    Repeating their images gives them more exposure per epoch. The repeat
+    factor scales with how rare the image's rarest class is, capped so
+    that a handful of images cannot dominate an epoch.
     """
     label_dir = DATA / "labels" / "train"
     img_dir = DATA / "images" / "train"
@@ -54,8 +52,9 @@ def build_oversampled_yaml(max_repeat: int = 4) -> Path:
         if classes:
             rarest = min(freq[c] for c in classes)
             repeat = min(max_repeat, max(1, round((median / rarest) ** 0.5)))
-        # keep the images/train symlink path (do NOT resolve): Ultralytics
-        # finds labels by substituting /images/ -> /labels/ in each path
+        # Do not resolve these paths. Ultralytics locates labels by
+        # swapping /images/ for /labels/, which only works while the
+        # path still points at the staged directory.
         lines.extend([str(matches[0])] * repeat)
 
     (DATA / "train_oversampled.txt").write_text("\n".join(lines) + "\n")

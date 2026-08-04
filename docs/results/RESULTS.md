@@ -53,10 +53,9 @@ All four detector variants on the same held-out test set:
 | 1280 FP32 | 38.5 | **0.909** | 0.723 | 149.2 | 154.9 |
 | 1280 INT8 | 10.6 | 0.883 | 0.683 | 122.4 | 127.3 |
 
-Mixed result, stated plainly:
+A mixed result:
 
-- **mAP50 improved to 0.909**, clearing the ~0.90 reported by YOLOv8-ECCa
-  (a purpose-modified architecture) with a stock YOLO11-s.
+- **mAP50 improved to 0.909**, up from 0.893 at 640.
 - **mAP50-95 did not improve** (0.723 vs the 640 run's 0.734). The best
   mAP50-95 in this project remains the 640 baseline.
 - Every targeted weak class improved, but far less than the validation
@@ -65,7 +64,7 @@ Mixed result, stated plainly:
   0.568 to 0.623, lightning rod shackle 0.792 to 0.830.
 - The validation split showed these classes at 0.90-0.995, which looked
   like a blowout. It was small-sample optimism: val holds 5-20 instances
-  of each shackle class against 195-263 in test. A useful reminder of why
+  of each shackle class against 97-149 in test. A useful reminder of why
   the held-out test set is the only number worth quoting.
 
 Likely cause of the flat mAP50-95: early stopping ended the run at epoch
@@ -108,10 +107,10 @@ defines its metric as "Box AP from MS COCO, also known as AP (with IoU as
 0.50:0.95)" and reports DetectoRS at AP 0.721 / AP50 0.885 / AP75 0.749.
 Same definition, same split, so the comparison is apples to apples.
 
-Correction to an earlier note in this file: YOLOv8-ECCa reports 82.75%
-mAP50 on InsPLAD-det, not ~90% as first recorded here. That figure is
-below the InsPLAD paper's own DetectoRS AP50 (0.885), which implies a
-different split or protocol, so it is not used as a comparison point.
+On YOLOv8-ECCa, a 2026 paper that also targets InsPLAD-det: it reports
+82.75% mAP50, which sits below the InsPLAD paper's own DetectoRS AP50 of
+0.885. That gap implies a different split or evaluation protocol, so its
+numbers are not treated as comparable here.
 
 The quantized model is the more interesting claim. At 10.6 MB, cm60 INT8
 scores 0.906 mAP50 and 0.726 mAP50-95, so **the quantized model alone
@@ -122,7 +121,7 @@ Quantization behaved much better here too: probability correlation 0.964
 (against 0.837 for the 120-epoch run) and per-image detection counts
 tracking FP32 closely (80 vs 80, 39 vs 39, 37 vs 37). The AdamW-trained
 weights quantize cleanly where the MuSGD-trained weights did not, which
-is worth remembering: quantization robustness is a property of the
+is a useful thing to know: quantization robustness is a property of the
 trained weights, not only of the quantization settings.
 
 Weak-class progress, AP50, 640-INT8 to cm60-INT8: lightning rod shackle
@@ -137,12 +136,6 @@ Deployment decision: the Space still serves the 640 INT8 model. cm60 INT8
 is meaningfully more accurate (+1.7 mAP50) but costs 127 ms per image
 against 30 ms, and free-tier CPU cold starts favour the smaller input.
 The 1280 model is reported as the best model trained.
-
-Deployment decision unchanged: the Space serves the 640 INT8 model. At
-1280 a single CPU inference costs ~122 ms against ~30 ms at 640, a 4x
-latency increase for 1.6 points of mAP50 and a loss of mAP50-95. The 1280
-model is reported as the best-accuracy model trained, not the deployed
-one.
 
 Second quantization pitfall, caught by the hardened sanity check: INT8 at
 1280 degrades much more than at 640 (2.6 points of mAP50 lost vs 0.4).
@@ -162,16 +155,17 @@ polymer insulator hardware, dampers, yokes, vari-grip, tower id plates.
 
 Weak, and why:
 
-| Class | AP50 | Train instances | Hypothesis |
+| Class | AP50 | Train instances | Why it struggles |
 |---|---|---|---|
-| glass insulator big shackle | 0.57 | 259 | rare + small + visually similar to small/tower shackle variants |
-| glass insulator small shackle | 0.55 | 263 | same confusion cluster |
-| glass insulator tower shackle | 0.61 | 195 | same cluster, fewest examples |
-| lightning rod shackle | 0.79 | 195 | rare, small object |
+| glass insulator small shackle | 0.55 | 108 | rare, small, and easily confused with the other two shackle variants |
+| glass insulator big shackle | 0.57 | 101 | same confusion cluster |
+| glass insulator tower shackle | 0.61 | 86 | same cluster, fewest examples |
+| lightning rod shackle | 0.79 | 156 | rare and small |
 
-The three glass-insulator shackle variants form one confusion cluster:
-rare classes (195-263 instances vs 6,953 for the most common class),
-physically small, and mutually similar. Higher training resolution
+Train instance counts are after the 10% validation carve-out. The three
+glass-insulator shackle variants form one confusion cluster: each has
+around a hundred training examples against 5,159 for the most common
+class, they are physically small, and they look alike. Higher training resolution
 (1280) and rare-class oversampling are the planned levers; both are
 wired into train_detector.py as flags.
 

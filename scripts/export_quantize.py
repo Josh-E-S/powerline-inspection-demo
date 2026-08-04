@@ -1,21 +1,19 @@
-"""Export models to ONNX and quantize the detector to INT8.
+"""Export the trained models to ONNX and quantize the detector to INT8.
 
-Detector: Ultralytics FP32 ONNX export, then ONNX Runtime static
-quantization (QDQ, per-channel weights) calibrated on real validation
-images. Includes a sanity check comparing FP32 vs INT8 raw outputs on
-the same batch before any metrics are trusted.
+The detector is exported through Ultralytics, then quantized with ONNX
+Runtime static quantization calibrated on real validation images.
+Calibrating on in-domain data is what keeps the accuracy loss small.
 
-Classifier: FP32 ONNX export only (quantization scope is detector-only,
-per spec), plus a class-name JSON the app reads.
+The classifier is exported at FP32 only. It runs on small crops and
+contributes little to total inference cost, so compressing it would buy
+almost nothing.
 
-Outputs land in app/models/:
-  detector_fp32.onnx, detector_int8.onnx,
-  classifier.onnx, classifier_classes.json
+Quantization is checked before any benchmarking happens. See
+sanity_check() for what it looks at and why.
 
-Example:
-  python3 scripts/export_quantize.py \
-      --weights runs/detect/det_yolo11s_640/weights/best.pt \
-      --classifier runs/classify/cls_effv2s/best.pt --imgsz 640
+Everything is written to app/models/.
+
+    python scripts/export_quantize.py --weights best.pt --imgsz 640
 """
 
 import argparse
@@ -34,7 +32,11 @@ SEED = 42
 
 
 def letterbox(path: Path, size: int) -> np.ndarray:
-    """Ultralytics-style preprocexss: fit into size x size, pad with 114."""
+    """Resize to a square, preserving aspect ratio and padding with 114.
+
+    This has to match what Ultralytics did during training. Any mismatch
+    quietly costs accuracy rather than raising an error.
+    """
     img = Image.open(path).convert("RGB")
     r = min(size / img.width, size / img.height)
     nw, nh = round(img.width * r), round(img.height * r)
@@ -48,6 +50,7 @@ def letterbox(path: Path, size: int) -> np.ndarray:
 
 
 def export_detector(weights: str, imgsz: int) -> Path:
+    """Export the trained detector to FP32 ONNX."""
     from ultralytics import YOLO
 
     onnx_path = Path(
@@ -61,6 +64,7 @@ def export_detector(weights: str, imgsz: int) -> Path:
 
 
 def quantize_detector(fp32_path: Path, imgsz: int, n_calib: int) -> Path:
+    """Quantize the FP32 detector to INT8 using real images to calibrate."""
     import onnxruntime as ort
     from onnxruntime.quantization import (
         CalibrationDataReader,
@@ -102,9 +106,10 @@ def quantize_detector(fp32_path: Path, imgsz: int, n_calib: int) -> Path:
         quant_format=QuantFormat.QDQ,
         per_channel=True,
         weight_type=QuantType.QInt8,
-        # Conv/MatMul only: the detect head's output mixes pixel coords
-        # (0-640) and class probs (0-1) in one tensor; quantizing that
-        # tensor forces one shared scale and rounds every prob to zero.
+        # Restricted to Conv/MatMul on purpose. The detection head emits
+        # box coordinates and class probabilities in one tensor, and
+        # those live on wildly different scales, so quantizing it forces
+        # a shared scale that rounds every probability to zero.
         op_types_to_quantize=["Conv", "MatMul"],
     )
     pre.unlink()
@@ -112,7 +117,13 @@ def quantize_detector(fp32_path: Path, imgsz: int, n_calib: int) -> Path:
 
 
 def sanity_check(fp32_path: Path, int8_path: Path, imgsz: int, n: int = 8):
-    """FP32 vs INT8 raw outputs on the same images; abort-worthy if wild."""
+    """Compare FP32 and INT8 outputs before trusting any metrics.
+
+    Box coordinates and class probabilities are checked separately. A
+    single correlation over the whole tensor is dominated by the
+    coordinates, and will happily report near-perfect agreement for a
+    model whose probabilities have collapsed to zero.
+    """
     import onnxruntime as ort
 
     files = sorted(CALIB_DIR.glob("*.*"))[:n]
@@ -128,8 +139,6 @@ def sanity_check(fp32_path: Path, int8_path: Path, imgsz: int, n: int = 8):
         x = letterbox(f, imgsz)
         a = s32.run(None, {name: x})[0][0]  # (4+nc, anchors)
         b = s8.run(None, {name: x})[0][0]
-        # coords and probs judged separately: coords (0-640) dominate any
-        # whole-tensor statistic and can mask fully-crushed probabilities
         box_cors.append(float(np.corrcoef(a[:4].ravel(), b[:4].ravel())[0, 1]))
         prob_cors.append(
             float(np.corrcoef(a[4:].ravel(), b[4:].ravel())[0, 1])
@@ -153,10 +162,11 @@ def sanity_check(fp32_path: Path, int8_path: Path, imgsz: int, n: int = 8):
 
 
 def export_classifier(ckpt_path: str):
+    """Export the classifier to ONNX, plus the class order the app needs."""
     import torch
     from torchvision import models
 
-    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     assert ckpt["arch"] == "efficientnet_v2_s", ckpt["arch"]
     model = models.efficientnet_v2_s(weights=None)
     model.classifier[1] = torch.nn.Linear(
