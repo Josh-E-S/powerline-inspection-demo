@@ -1,16 +1,17 @@
-"""Fine-tune a condition classifier on InsPLAD-fault crops.
+"""Fine-tune EfficientNetV2-S on the InsPLAD fault crops.
 
-Single EfficientNetV2-S backbone, one softmax head over the 11 combined
-asset__condition classes staged by prep_insplad.py in data/fault/.
-Class-balanced batch sampling counters the skewed class sizes; the model
-selection metric is balanced accuracy (mean per-class recall) on val,
-matching the paper's metric.
+One softmax head covers all 11 asset__condition classes; at inference the
+app masks the logits down to the conditions valid for whichever asset was
+detected.
 
-Headless and resumable (picks up runs/classify/<name>/last.pt unless
---fresh). The test split is never touched here; benchmark.py owns it.
+The fault splits are badly imbalanced, with one class holding 5,742 test
+crops against another's 20. Batches are therefore class-balanced during
+training, and model selection uses balanced accuracy rather than plain
+accuracy, which would be dominated by the largest class.
 
-Run prep first: python3 scripts/prep_insplad.py
-Example: python3 scripts/train_classifier.py --epochs 30
+Resumable in the same way as the detector script.
+
+    python scripts/train_classifier.py
 """
 
 import argparse
@@ -29,6 +30,7 @@ SEED = 42
 
 
 def device():
+    """Pick the best available accelerator."""
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():
@@ -37,6 +39,11 @@ def device():
 
 
 def loaders(batch_size, workers, smoke=False):
+    """Build the train and validation loaders.
+
+    Training samples are drawn with weights inverse to class frequency,
+    so each batch sees a roughly even spread of conditions.
+    """
     train_tf = transforms.Compose(
         [
             transforms.RandomResizedCrop(224, scale=(0.6, 1.0)),
@@ -87,6 +94,7 @@ def loaders(batch_size, workers, smoke=False):
 
 @torch.no_grad()
 def balanced_accuracy(model, dl, n_classes, dev):
+    """Mean per-class recall, so every class counts equally."""
     model.eval()
     correct = torch.zeros(n_classes)
     total = torch.zeros(n_classes)
@@ -153,7 +161,7 @@ def main():
 
     start_epoch, best_bacc, since_best = 0, 0.0, 0
     if last_path.exists() and not args.fresh:
-        ckpt = torch.load(last_path, map_location=dev, weights_only=False)
+        ckpt = torch.load(last_path, map_location=dev, weights_only=True)
         model.load_state_dict(ckpt["model"])
         opt.load_state_dict(ckpt["opt"])
         sched.load_state_dict(ckpt["sched"])

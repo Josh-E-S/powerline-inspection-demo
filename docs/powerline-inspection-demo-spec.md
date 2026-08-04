@@ -11,7 +11,7 @@ This is a portfolio work sample for a Solutions Engineer (AI/ML) role at a compu
 1. **Trained detector**: YOLO11-small fine-tuned on InsPLAD-det, detecting the 17 power line asset classes.
 2. **Condition classifier**: small ImageNet-pretrained model fine-tuned on InsPLAD-fault crops; labels detected components of the five defect-prone asset types (normal / corroded / broken / bird's nest as applicable).
 3. **Quantized export**: detector exported to ONNX FP32 and ONNX INT8 (static quantization with in-domain calibration). Classifier ships as FP32 ONNX; it is small enough that quantizing it buys little and would muddy the comparison story.
-4. **Comparison table** (the centerpiece artifact): detector FP32 vs INT8 — model file size, CPU inference latency (p50/p95), and detection accuracy on a held-out set. Full-pipeline latency (detector + classifier over the image's crops) reported alongside, separately.
+4. **Comparison table** (the centerpiece artifact): detector FP32 vs INT8, covering model file size, CPU inference latency (p50/p95), and detection accuracy on a held-out set. Full-pipeline latency (detector + classifier over the image's crops) reported alongside, separately.
 5. **Gradio demo app**:
    - Image upload → rendered detections
    - Confidence threshold slider that live-updates displayed precision/recall (precomputed from eval set)
@@ -22,7 +22,7 @@ This is a portfolio work sample for a Solutions Engineer (AI/ML) role at a compu
 
 ## Dataset
 
-**InsPLAD** — Inspection of Power Line Assets Dataset.
+**InsPLAD**, the Inspection of Power Line Assets Dataset.
 - Repo: https://github.com/andreluizbvs/InsPLAD
 - Paper: arXiv 2311.01619
 - 10,607 high-res UAV images, 17 asset classes. Five asset types carry six defect labels: four corrosion variants, one broken component, one bird's nest.
@@ -63,12 +63,12 @@ The deployment story stays unchanged (YOLO11-s INT8 serves the Space). On top of
 
 Run order: s@640 baseline first (end-to-end pipeline proof), then s@1280, then m@1280. Budget rises to roughly $4–6 GPU spend; training runs unattended overnight.
 
-## Quantization (critical path — do this correctly)
+## Quantization (critical path, do this correctly)
 
 - **Scope: detector only.** The classifier ships as FP32 ONNX; it is tiny, and quantizing it would complicate the comparison story for negligible gain. State this in the README.
 - Export FP32 ONNX via Ultralytics export.
 - INT8 via ONNX Runtime **static** quantization.
-- Calibration: 500–1000 images sampled (shuffled) from the validation set — in-domain calibration is what preserves accuracy. Do not use random/synthetic calibration data.
+- Calibration: 500–1000 images sampled (shuffled) from the validation set. In-domain calibration is what preserves accuracy. Do not use random/synthetic calibration data.
 - Verify INT8 output sanity: run both models on the same batch, compare detections qualitatively before trusting metrics.
 - Research task: check current ONNX Runtime quantization API (quantize_static, CalibrationDataReader) for the installed version; APIs have shifted across versions.
 
@@ -110,7 +110,7 @@ Emit the table as markdown ready to paste into README.
 ## Working Agreements
 
 - Owner's standing preferences: no overclaiming anywhere; every claim survives hostile questioning; no em dashes in written prose; natural voice in README, not AI-sounding marketing language.
-- Plan before building: Claude Code should start by (1) resolving the research tasks above, (2) proposing the class-set decision and repo layout, (3) confirming the split strategy — then build.
+- Plan before building: Claude Code should start by (1) resolving the research tasks above, (2) proposing the class-set decision and repo layout, (3) confirming the split strategy, then build.
 - Suggested repo layout:
 
 ```

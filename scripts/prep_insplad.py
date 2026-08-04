@@ -1,24 +1,19 @@
-"""Prepare InsPLAD for training.
+"""Convert the raw InsPLAD download into training-ready layouts.
 
-Detection (data/raw -> data/yolo):
-- Converts COCO JSON (annotations/instances_{train,val}.json) to YOLO txt.
-- Dedupes the 46 duplicate image entries in the train JSON (by file_name),
-  merging and deduping their annotations.
-- Drops the `sphere` class (26 instances; the paper's 17-class set and its
-  28,933-instance total exclude it) and remaps ids to 0..16.
-- Splits: official val (2,626 images) becomes the held-out TEST set so
-  results are comparable to the published baselines. Our own val (10% of
-  train, seed 42) is carved from train for early stopping and INT8
-  calibration.
-- Images are symlinked, not copied. Emits data/yolo/insplad.yaml.
+Detection annotations become YOLO txt files under data/yolo/, and fault
+crops become class folders under data/fault/. Images are symlinked rather
+than copied, so the staged layout costs a few megabytes instead of
+duplicating 5 GB.
 
-Fault classification (data/raw/defect_supervised -> data/fault):
-- Normalizes inconsistent condition labels (corrosão -> rust, normal -> good).
-- Combined asset__condition class folders (11 classes).
-- Official val becomes TEST; our val is 10% of train per class, seed 42.
-- Emits data/fault/classes.json.
+The raw data needs three corrections on the way through. Each one is
+handled next to the code that applies it.
 
-Run from the repo root: python3 scripts/prep_insplad.py
+Split strategy: the shipped val/ folder becomes our test set, which makes
+results comparable to the published benchmark, and our own validation set
+is carved out of train instead. Everything is seeded, so re-running gives
+identical splits.
+
+    python scripts/prep_insplad.py
 """
 
 import json
@@ -52,7 +47,11 @@ def load_coco(path: Path):
 
 
 def dedupe_images(coco):
-    """Collapse duplicate image entries (same file_name) to one canonical id."""
+    """Collapse repeated image entries down to one per filename.
+
+    The train annotations list 7,981 images but only 7,935 distinct
+    files. Left alone, the duplicates would be counted twice.
+    """
     canon = {}  # file_name -> canonical image dict
     id_map = {}  # original image id -> canonical image id
     for img in coco["images"]:
@@ -66,7 +65,11 @@ def dedupe_images(coco):
 
 
 def collect_boxes(coco, id_map, cat_to_yolo):
-    """Group deduped, class-filtered boxes by canonical image id."""
+    """Group boxes by image, dropping classes we are not training on.
+
+    Using a set also removes boxes duplicated by the repeated image
+    entries above.
+    """
     boxes = defaultdict(set)
     for ann in coco["annotations"]:
         if ann["category_id"] not in cat_to_yolo:
@@ -78,6 +81,11 @@ def collect_boxes(coco, id_map, cat_to_yolo):
 
 
 def write_split(images, boxes, img_dir, split):
+    """Write YOLO label files and link the images for one split.
+
+    COCO stores boxes as absolute corner coordinates; YOLO wants the
+    centre, normalized against the image size.
+    """
     n_boxes = 0
     for img in images:
         W, H = img["width"], img["height"]
@@ -133,8 +141,8 @@ def prep_detection():
     )
 
     yaml_lines = [
-        # absolute: Ultralytics resolves a relative `path` against its
-        # global datasets dir, not this file's location
+        # Absolute on purpose. Ultralytics resolves a relative `path`
+        # against its global datasets directory, not against this file.
         f"path: {OUT_DET.resolve()}",
         "train: images/train",
         "val: images/val",

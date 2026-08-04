@@ -1,11 +1,14 @@
-"""Precompute precision/recall vs detection-confidence threshold.
+"""Precompute the precision/recall figures the demo slider displays.
 
-Runs the deployed INT8 detector over the held-out test set once (via
-Ultralytics val) and extracts the P and R curves vs confidence, sampled
-at the app slider's thresholds. Ships as app/pr_table.json so the app
-can show dataset-level P/R for any slider position without re-inference.
+The app shows how precision and recall trade off at whatever threshold
+the user picks. Computing that live would mean re-evaluating the whole
+test set on every drag, so the curve is sampled once here and shipped
+alongside the app as pr_table.json.
 
-Run after export_quantize.py: python3 scripts/make_pr_table.py
+Run this after export_quantize.py, since it evaluates the exported INT8
+model.
+
+    python scripts/make_pr_table.py
 """
 
 import json

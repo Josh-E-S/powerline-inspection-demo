@@ -101,7 +101,7 @@ Stockbridge Damper 5699/1254, Spiral Damper 831/189. Seventeen
 independent count matches establish that the shipped `val/` folder is the
 paper's test split.
 
-Consequence worth stating: this leaves **7,141 training images against
+One consequence: this leaves **7,141 training images against
 the baselines' 7,935**, so the models reported here are trained on ~10%
 less data than the published baselines, not more.
 
@@ -179,7 +179,7 @@ epoch 50 and early stopping cannot pre-empt it.
 train box loss drops 0.474 to 0.460, cls loss 0.286 to 0.246), and
 mAP50-95 rose 0.723 to 0.738, passing the 640 baseline.
 
-**Confound, stated plainly.** Shortening the schedule also changed
+**A confound to note.** Shortening the schedule also changed
 Ultralytics' `optimizer=auto` selection from MuSGD to AdamW, so two
 variables moved. The gain cannot be attributed to `close_mosaic` alone. A
 `--optimizer` flag now exists to pin this in future work.
@@ -221,8 +221,8 @@ each metric regardless of which method produced it.
 The paper reports weights size and throughput for every detector, which
 makes the deployment contrast concrete. Their throughput is measured on
 an RTX 3080Ti GPU; ours on an Apple M5 CPU. The hardware differs and the
-comparison favours this work, so it is stated plainly rather than
-presented as like-for-like.
+comparison favours this work, so the difference is called out rather
+than presented as like-for-like.
 
 | Model | Params | Weights | Throughput | Hardware | Box AP |
 |---|---|---|---|---|---|
@@ -283,7 +283,7 @@ this to sample scarcity. Resolution and rare-class oversampling moved
 those classes by 0.035 to 0.077 Box AP, using 86-108 training instances
 each.
 
-**The regressions are real and worth stating.** Spiral Damper loses 0.115
+**The regressions are real.** Spiral Damper loses 0.115
 against TOOD's 0.959, and Polymer Insulator Tower Shackle (42 training
 instances, the rarest class in the dataset) loses 0.050. This work leads
 on 11 of 17 classes, not all of them; the average gain comes from

@@ -1,11 +1,14 @@
-"""Gradio demo: powerline inspection pipeline.
+"""Gradio demo for the powerline inspection pipeline.
 
-Image -> INT8 YOLO11-s detector -> condition classifier on crops ->
-confidence-threshold gate -> auto-accepted findings + human review queue
--> GeoJSON export (simulated coordinates, labeled as such).
+An uploaded image runs through the detector, then the condition
+classifier on each crop of a defect-prone asset. A confidence threshold
+splits the results into findings the model is confident about and ones
+routed to a human, and either group can be exported as GeoJSON.
 
-Inference runs once per image; the threshold slider re-filters cached
-detections without re-running the models. Serving is ONNX Runtime only.
+Inference happens once per image and the detections are cached, so moving
+the threshold slider only re-filters results that already exist. Serving
+uses ONNX Runtime alone, with no torch or Ultralytics dependency, which
+keeps the deployed image small and the cold start short.
 """
 
 import ast
@@ -62,6 +65,11 @@ STD = np.array([0.229, 0.224, 0.225], np.float32).reshape(3, 1, 1)
 
 # ------------------------------------------------------------- inference
 def letterbox(img: Image.Image):
+    """Fit the image into a square canvas, matching training preprocessing.
+
+    Returns the tensor plus the scale and padding needed to map boxes
+    back onto the original image.
+    """
     r = min(IMGSZ / img.width, IMGSZ / img.height)
     nw, nh = round(img.width * r), round(img.height * r)
     px, py = (IMGSZ - nw) // 2, (IMGSZ - nh) // 2
@@ -72,6 +80,7 @@ def letterbox(img: Image.Image):
 
 
 def nms(boxes, scores, iou_thr):
+    """Suppress overlapping boxes, keeping the highest-scoring ones."""
     order = scores.argsort()[::-1]
     keep = []
     while order.size:
@@ -94,6 +103,13 @@ def nms(boxes, scores, iou_thr):
 
 
 def classify_crop(img: Image.Image, box, prefix):
+    """Classify the condition of one detected component.
+
+    The classifier has a single head over every asset's conditions, so
+    the logits are masked down to the ones valid for this asset before
+    the softmax. A glass insulator cannot be diagnosed with a bird's
+    nest.
+    """
     crop = img.crop(box)
     r = 256 / min(crop.size)
     crop = crop.resize(
@@ -129,7 +145,8 @@ def run_pipeline(image: Image.Image):
     xy[:, 1] = boxes_xywh[:, 1] - boxes_xywh[:, 3] / 2
     xy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2] / 2
     xy[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3] / 2
-    # class-wise NMS via coordinate offset trick
+    # Offsetting boxes by class id keeps NMS from suppressing an
+    # overlapping detection of a genuinely different component.
     offset = cls_ids[:, None] * (IMGSZ * 2)
     keep = nms(xy + offset, confs, IOU_NMS)
 
@@ -165,6 +182,11 @@ def run_pipeline(image: Image.Image):
 
 # -------------------------------------------------------------------- ui
 def render(image, dets, thr):
+    """Draw the detections and split them across the threshold.
+
+    Called on every slider move, so it works from cached detections and
+    never re-runs the models.
+    """
     if image is None or dets is None:
         return None, [], [], pr_text(thr)
     img = image.convert("RGB").copy()
@@ -193,6 +215,7 @@ def render(image, dets, thr):
 
 
 def pr_text(thr):
+    """Look up precision and recall for the current threshold."""
     p = float(np.interp(thr, PR_TABLE["thresholds"], PR_TABLE["precision"]))
     r = float(np.interp(thr, PR_TABLE["thresholds"], PR_TABLE["recall"]))
     return (
@@ -215,6 +238,12 @@ def reslider(image, dets, thr):
 
 
 def export_geojson(image, dets, thr):
+    """Build a GeoJSON FeatureCollection from the current findings.
+
+    Coordinates are simulated along a real corridor and labelled as such
+    in every feature. The scatter is seeded from the detections so the
+    same image always exports to the same place.
+    """
     if not dets:
         return None
     seed = int(
