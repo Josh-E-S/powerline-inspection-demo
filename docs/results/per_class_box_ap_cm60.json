@@ -1,0 +1,40 @@
+{
+  "fp32": {
+    "yoke": 0.8482,
+    "yoke suspension": 0.8755,
+    "spacer": 0.5014,
+    "stockbridge damper": 0.8701,
+    "lightning rod shackle": 0.6514,
+    "lightning rod suspension": 0.9274,
+    "polymer insulator": 0.9482,
+    "glass insulator": 0.8642,
+    "tower id plate": 0.9928,
+    "vari-grip": 0.9706,
+    "polymer insulator lower shackle": 0.6791,
+    "polymer insulator upper shackle": 0.8743,
+    "polymer insulator tower shackle": 0.4811,
+    "glass insulator big shackle": 0.3875,
+    "glass insulator small shackle": 0.3568,
+    "glass insulator tower shackle": 0.4676,
+    "spiral damper": 0.8437
+  },
+  "int8": {
+    "yoke": 0.8441,
+    "yoke suspension": 0.8509,
+    "spacer": 0.5092,
+    "stockbridge damper": 0.8467,
+    "lightning rod shackle": 0.6535,
+    "lightning rod suspension": 0.9071,
+    "polymer insulator": 0.9406,
+    "glass insulator": 0.8502,
+    "tower id plate": 0.9833,
+    "vari-grip": 0.9615,
+    "polymer insulator lower shackle": 0.6437,
+    "polymer insulator upper shackle": 0.8681,
+    "polymer insulator tower shackle": 0.492,
+    "glass insulator big shackle": 0.3701,
+    "glass insulator small shackle": 0.3369,
+    "glass insulator tower shackle": 0.4592,
+    "spiral damper": 0.8299
+  }
+}
