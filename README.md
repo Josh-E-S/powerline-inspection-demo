@@ -7,6 +7,10 @@
 [![Models](https://img.shields.io/badge/models-CC%20BY--NC%203.0-lightgrey)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](requirements.txt)
 
+![Detected power line components on a single UAV frame, each boxed in green or orange](docs/images/hero-detections.jpg)
+
+*Green = auto-accepted, orange = routed to human review.*
+
 **[Try the live demo](https://huggingface.co/spaces/ACloudCenter/powerline-inspection-demo)** ·
 **[Download the models](https://huggingface.co/ACloudCenter/yolo11s-insplad-powerline)** ·
 **[Technical report](docs/TECHNICAL-REPORT.md)** ·
